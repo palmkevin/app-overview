@@ -1,0 +1,13 @@
+# Scenario 3: parses fine but FAILS VALIDATION — spec.owner is missing.
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: metrics-dashboard
+  description: Grafana-style KPI dashboard for team metrics
+  annotations:
+    ourcompany.io/k8s-deployment: metrics-dashboard
+    ourcompany.io/k8s-namespace: tools
+  tags: [react, analytics]
+spec:
+  type: website
+  lifecycle: production

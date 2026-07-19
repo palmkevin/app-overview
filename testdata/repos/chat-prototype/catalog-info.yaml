@@ -1,0 +1,12 @@
+# Scenario 8: experimental app, NOT deployed — allowed, no k8s annotations,
+# no gap entry.
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: chat-prototype
+  description: Prototype of an internal support chat widget
+  tags: [svelte, prototype]
+spec:
+  type: website
+  lifecycle: experimental
+  owner: lisa.hoffmann

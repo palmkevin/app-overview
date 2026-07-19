@@ -1,0 +1,14 @@
+# Scenario 6: valid manifest, DEGRADED at runtime (0 < ready < desired).
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: pdf-renderer
+  description: Shared PDF rendering service for reports and invoices
+  annotations:
+    ourcompany.io/k8s-deployment: pdf-renderer
+    ourcompany.io/k8s-namespace: tools
+  tags: [nodejs, shared-service]
+spec:
+  type: service
+  lifecycle: production
+  owner: sara.klein

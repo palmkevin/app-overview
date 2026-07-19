@@ -1,0 +1,18 @@
+# Scenario 9: production app whose declared Deployment does NOT exist
+# (gap: "cataloged but not deployed").
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: hr-portal
+  description: Self-service portal for payslips and HR documents
+  annotations:
+    ourcompany.io/k8s-deployment: hr-portal
+    ourcompany.io/k8s-namespace: apps
+  links:
+    - url: https://hr.internal.example.com
+      title: App URL
+  tags: [angular, hr]
+spec:
+  type: website
+  lifecycle: production
+  owner: anna.schmit

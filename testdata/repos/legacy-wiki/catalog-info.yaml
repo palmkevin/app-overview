@@ -1,0 +1,11 @@
+# Scenario 2: INVALID YAML — the unclosed flow sequence below is a real
+# parse error ("invalid metadata" badge on the page).
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: legacy-wiki
+  description: [unclosed bracket makes this file unparseable
+spec:
+  type: website
+  lifecycle: deprecated
+  owner: tom.muller

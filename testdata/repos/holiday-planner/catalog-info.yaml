@@ -1,0 +1,17 @@
+# Scenario 1: valid, healthy production app (website).
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: holiday-planner
+  description: Team vacation planning and absence overview
+  annotations:
+    ourcompany.io/k8s-deployment: holiday-planner
+    ourcompany.io/k8s-namespace: tools
+  links:
+    - url: https://holidays.internal.example.com
+      title: App URL
+  tags: [vue, hr]
+spec:
+  type: website
+  lifecycle: production
+  owner: tom.muller

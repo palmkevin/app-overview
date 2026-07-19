@@ -1,0 +1,5 @@
+# Scenario 10: the runtime API is entirely unreachable. The page must still
+# render from repo data, with a "runtime data unavailable since <ts>" banner,
+# and the generator must exit 0 (PRD acceptance criterion 3).
+runtime_unavailable: true
+since: "2026-07-01T05:30:00+00:00"

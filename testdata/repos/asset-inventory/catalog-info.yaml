@@ -1,0 +1,14 @@
+# Scenario 1: valid, healthy production app (tool).
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: asset-inventory
+  description: Hardware and license inventory with barcode lookup
+  annotations:
+    ourcompany.io/k8s-deployment: asset-inventory
+    ourcompany.io/k8s-namespace: apps
+  tags: [django, it-ops]
+spec:
+  type: tool
+  lifecycle: production
+  owner: marc.weber

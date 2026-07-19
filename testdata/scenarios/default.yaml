@@ -1,0 +1,2 @@
+# Default testrun scenario: runtime API reachable, data from k8s.yaml.
+runtime_unavailable: false

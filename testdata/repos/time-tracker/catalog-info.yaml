@@ -1,0 +1,19 @@
+# Scenario 1: valid, healthy production app (website).
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: time-tracker
+  description: Internal time tracking for project billing
+  annotations:
+    ourcompany.io/k8s-deployment: time-tracker
+    ourcompany.io/k8s-namespace: tools
+  links:
+    - url: https://time.internal.example.com
+      title: App URL
+    - url: https://wiki.internal.example.com/x/time-tracker-runbook
+      title: Runbook
+  tags: [react, internal-tool]
+spec:
+  type: website
+  lifecycle: production
+  owner: jane.doe
