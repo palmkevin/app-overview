@@ -9,6 +9,14 @@ no backend, no database.
 > It currently lives on GitHub and will migrate to the company Bitbucket/Jenkins/k3s
 > infrastructure later.
 
+## Live demo
+
+**<https://palmkevin.github.io/app-overview/>**
+
+The demo shows deterministic **testrun-mode** data — fake apps from the fixtures in
+`testdata/`, not real ones. It is regenerated and redeployed on every push to `main`
+by [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
+
 ## How it works
 
 1. Every app repo declares metadata in a `catalog-info.yaml` at its root
