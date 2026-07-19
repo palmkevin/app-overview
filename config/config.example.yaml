@@ -1,0 +1,61 @@
+# App Catalog generator — example configuration.
+#
+# Copy to e.g. config/config.yaml and pass with:
+#   python -m catalog_generator --config config/config.yaml --output out/
+#
+# All values shown are placeholders (example.com style). No secrets belong
+# in this file — tokens are read from environment variables only; the
+# *_token_env-style keys below only name WHICH variable to read.
+
+# Operating mode:
+#   testrun — fake adapters reading deterministic fixtures from testdata_dir,
+#             no network access (default; needs no other keys).
+#   live    — real Bitbucket REST + Kubernetes API adapters (requires the
+#             bitbucket.* and kubernetes.* keys below).
+mode: testrun
+
+# Prefix of the catalog annotations in catalog-info.yaml, i.e. the manifests
+# declare "<annotation_prefix>/k8s-deployment" and
+# "<annotation_prefix>/k8s-namespace". Configurable — "ourcompany.io" is
+# only the default placeholder.
+annotation_prefix: ourcompany.io
+
+# Directory holding the deterministic testrun fixtures (testrun mode only).
+testdata_dir: testdata
+
+# Output directory for the generated catalog.html (and catalog.json).
+output_dir: out
+
+# Deployments to exclude from the "deployed but not cataloged" gap check
+# (infra workloads). Each entry is a regular expression matched against the
+# Deployment name; a plain name works as an exact-ish match.
+ignore_deployments:
+  - nginx-ingress.*
+  - cert-manager.*
+  - app-catalog-nginx
+
+# --- Bitbucket repo source (required in live mode) ---------------------------
+bitbucket:
+  # Base URL of the Bitbucket server (placeholder!).
+  base_url: https://bitbucket.example.com
+  # Bitbucket project keys whose repositories are scanned.
+  project_keys:
+    - APPS
+  # Name of the environment variable that holds the read-only Bitbucket
+  # token. Only the NAME goes here — never the token itself.
+  token_env: CATALOG_BITBUCKET_TOKEN
+
+# --- Kubernetes runtime source (required in live mode) -----------------------
+kubernetes:
+  # Kubernetes API endpoint (placeholder!).
+  api_endpoint: https://k8s.example.com:6443
+  # Path to the cluster CA certificate bundle (optional).
+  ca_path: /etc/catalog/k8s-ca.crt
+  # Namespaces to scan for Deployments (both for cataloged apps and for
+  # finding deployed-but-uncataloged workloads).
+  namespaces:
+    - tools
+    - apps
+  # Name of the environment variable that holds the read-only
+  # ServiceAccount token. Only the NAME goes here — never the token itself.
+  token_env: CATALOG_K8S_TOKEN
