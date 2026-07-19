@@ -18,6 +18,8 @@ dependencies = [
 dev = [
     "pytest",
     "ruff",
+    # Browser e2e suite only (tests/e2e, `pytest -m e2e`) — NOT a runtime dep.
+    "playwright",
 ]
 
 [tool.setuptools]
