@@ -28,6 +28,10 @@ no backend, no database.
 - **`live`** — real Bitbucket + Kubernetes APIs. Usable only after migration to the
   company infrastructure.
 
+Everything downstream of the source interfaces is identical in both modes; only the
+adapters differ. The mode split and testrun fixtures are specified in
+[docs/decisions.md](docs/decisions.md).
+
 ## Documentation
 
 - [PRD.md](PRD.md) — full product requirements
@@ -38,10 +42,12 @@ no backend, no database.
 ## Development
 
 ```bash
-pip install -e .[dev]
-pytest
-ruff check .
-python -m catalog_generator --mode testrun --output out/
+pip install -e .[dev]                                    # setup (pytest + ruff included)
+pytest                                                   # unit tests (e2e excluded)
+pytest -m e2e                                            # browser e2e tests (later issue)
+ruff check .                                             # lint
+python -m catalog_generator --mode testrun --output out/ # generate the page
+python -m catalog_generator --mode testrun --scenario runtime-unavailable --output out/
 ```
 
 Requires Python 3.14. See [CLAUDE.md](CLAUDE.md) for the working conventions and
