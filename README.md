@@ -37,7 +37,7 @@ adapters differ. The mode split and testrun fixtures are specified in
 - [PRD.md](PRD.md) — full product requirements
 - [docs/decisions.md](docs/decisions.md) — binding implementation decisions and the
   testrun-mode specification
-- `docs/schema.md` — `catalog-info.yaml` reference for app developers (issue #3)
+- [docs/schema.md](docs/schema.md) — `catalog-info.yaml` reference for app developers
 
 ## Development
 
