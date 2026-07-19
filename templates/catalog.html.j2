@@ -1,10 +1,19 @@
 <!DOCTYPE html>
 {#-
-  MVP catalog page (issue #9): plain self-contained table.
-  Hard rules: inline CSS only, no JS needed yet, ZERO external requests
-  (no CDN, no webfonts, no external images — status icons are emoji).
+  Catalog page (issue #10): header stats, app card grid, status/lifecycle
+  badges, links, runtime-unavailable banner.
+
+  Hard rules: fully self-contained — inline CSS only, ZERO external requests
+  (no CDN, no webfonts, no external images; status icons are emoji).
   Autoescaping is enabled by the renderer; never use the |safe filter on
   manifest/fixture data.
+
+  Machine-readable contract for issue #11 (search/filter/sort): every app
+  card is an <article class="card"> inside #app-cards carrying
+  data-name / data-description / data-tags (space-separated) / data-owner /
+  data-lifecycle / data-status / data-last-deploy (ISO-8601 or empty).
+  #11 mounts its controls in the #controls region below the header.
+  The gaps section is <section id="gaps"> (restyled later by #12).
 -#}
 <html lang="en">
 <head>
@@ -13,56 +22,129 @@
 <title>App Catalog</title>
 <style>
   :root { color-scheme: light; }
+  * { box-sizing: border-box; }
   body {
     margin: 0 auto;
     padding: 1.5rem;
     max-width: 80rem;
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     font-size: 0.95rem;
+    line-height: 1.45;
     color: #1f2430;
     background: #f7f8fa;
   }
   h1 { margin: 0 0 0.25rem; font-size: 1.6rem; }
   h2 { margin: 2rem 0 0.5rem; font-size: 1.2rem; }
   h3 { margin: 1rem 0 0.25rem; font-size: 1rem; }
-  .stats { margin: 0 0 1rem; color: #5a6172; }
+  .stats { margin: 0; color: #5a6172; }
+
+  /* Runtime-unavailable banner: prominent, top of page. */
   .banner {
-    margin: 0 0 1rem;
-    padding: 0.6rem 0.9rem;
-    border: 1px solid #e0b400;
-    border-radius: 4px;
+    margin: 0 0 1.25rem;
+    padding: 0.8rem 1rem;
+    border: 2px solid #e0b400;
+    border-radius: 6px;
     background: #fff7d6;
     color: #6b5900;
-  }
-  table { border-collapse: collapse; width: 100%; background: #fff; }
-  th, td {
-    padding: 0.45rem 0.6rem;
-    border: 1px solid #d9dde5;
-    text-align: left;
-    vertical-align: top;
-  }
-  th { background: #eef0f4; }
-  .desc { color: #5a6172; font-size: 0.85rem; margin-top: 0.15rem; }
-  .ready { color: #5a6172; font-size: 0.85rem; }
-  .badge {
-    display: inline-block;
-    padding: 0 0.35rem;
-    border-radius: 3px;
-    font-size: 0.75rem;
     font-weight: 600;
   }
-  .badge.invalid { background: #fbe3e4; color: #8f1f28; border: 1px solid #e5a0a6; }
-  .error { color: #8f1f28; font-size: 0.8rem; margin-top: 0.15rem; }
-  .status { white-space: nowrap; }
+
+  /* Placeholder region: issue #11 mounts search/filter/sort controls here. */
+  #controls { margin: 1rem 0; }
+
+  /* App card grid: laptop-first, collapses gracefully on narrow screens
+     (min(22rem,100%) keeps cards from overflowing tiny viewports). */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(22rem, 100%), 1fr));
+    gap: 1rem;
+    margin-top: 1.25rem;
+  }
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    padding: 1rem;
+    background: #fff;
+    border: 1px solid #d9dde5;
+    border-radius: 8px;
+  }
+  .card-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem;
+  }
+  .app-name { margin: 0 auto 0 0; font-size: 1.1rem; }
+  .desc { margin: 0; color: #5a6172; font-size: 0.9rem; }
+
+  .badge {
+    display: inline-block;
+    padding: 0.05rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    background: #eef0f4;
+    border: 1px solid #d9dde5;
+    color: #3c4356;
+  }
+  /* Status badges (emoji carries the color; tint the pill too). */
+  .badge.status-healthy      { background: #e6f5e9; border-color: #b5dfc0; color: #1b6e2f; }
+  .badge.status-degraded     { background: #fff4d1; border-color: #ecd489; color: #7a5f00; }
+  .badge.status-down         { background: #fbe3e4; border-color: #e5a0a6; color: #8f1f28; }
+  .badge.status-not-deployed { background: #f1f2f5; border-color: #d9dde5; color: #5a6172; }
+  .badge.status-unknown      { background: #f1f2f5; border-color: #d9dde5; color: #5a6172; }
+  /* Lifecycle badges: visually distinct colors per lifecycle. */
+  .badge.lifecycle-experimental { background: #e9e4f9; border-color: #c7b8ee; color: #4b2e83; }
+  .badge.lifecycle-production   { background: #e2ecfb; border-color: #a9c4ec; color: #1d4e9e; }
+  .badge.lifecycle-deprecated   { background: #f7e8d8; border-color: #e2c39a; color: #8a5a16; }
+  .badge.invalid { background: #fbe3e4; border-color: #e5a0a6; color: #8f1f28; }
+
+  .error { color: #8f1f28; font-size: 0.8rem; overflow-wrap: anywhere; }
+  .invalid-note { margin: 0; }
+
+  .tags { list-style: none; display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0; padding: 0; }
+  .tag {
+    padding: 0 0.45rem;
+    border-radius: 999px;
+    background: #eef0f4;
+    border: 1px solid #d9dde5;
+    color: #5a6172;
+    font-size: 0.75rem;
+  }
+
+  .meta {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.15rem 0.75rem;
+    margin: 0;
+    font-size: 0.85rem;
+  }
+  .meta dt { color: #8a90a0; }
+  .meta dd { margin: 0; overflow-wrap: anywhere; }
+  .ready { color: #5a6172; }
+
+  .links { margin: auto 0 0; padding-top: 0.35rem; border-top: 1px solid #eef0f4; font-size: 0.85rem; }
   .links a { white-space: nowrap; }
+
+  #gaps ul { margin: 0.25rem 0; }
   .empty { color: #5a6172; }
   footer { margin-top: 2rem; color: #8a90a0; font-size: 0.8rem; }
 </style>
 </head>
 <body>
-<header>
+{% if not catalog.runtime_available %}
+<div id="runtime-banner" class="banner" role="alert">
+  ⚠️ Runtime data unavailable since
+  {{ catalog.runtime_unavailable_since | datefmt if catalog.runtime_unavailable_since else "an unknown time" }}
+  — statuses and deployment details cannot be shown.
+</div>
+{% endif %}
+
+<header id="header">
   <h1>App Catalog</h1>
-  <p class="stats">
+  <p class="stats" id="stats">
     {{ catalog.entries | length }} apps
     · {{ catalog.coverage.cataloged }} of {{ catalog.coverage.total }} repos cataloged
     ({{ "%.0f" | format(catalog.coverage.percent) }}%)
@@ -70,72 +152,98 @@
   </p>
 </header>
 
-{% if not catalog.runtime_available %}
-<div class="banner" role="alert">
-  ⚠️ Runtime data unavailable since
-  {{ catalog.runtime_unavailable_since | datefmt if catalog.runtime_unavailable_since else "an unknown time" }}
-  — statuses and deployment details cannot be shown.
-</div>
-{% endif %}
+{#- Anchor for issue #11: search / filter / sort controls mount here. -#}
+<div id="controls"></div>
 
 <main>
-<table>
-  <thead>
-    <tr>
-      <th>App</th>
-      <th>Status</th>
-      <th>Lifecycle</th>
-      <th>Owner</th>
-      <th>Image tag(s)</th>
-      <th>Last deploy</th>
-      <th>Last commit</th>
-      <th>Links</th>
-    </tr>
-  </thead>
-  <tbody>
+<section id="apps">
+  <div id="app-cards" class="card-grid">
   {% for entry in catalog.entries %}
     {% set manifest = entry.manifest %}
     {% set runtime = entry.runtime %}
-    <tr>
-      <td>
-        <strong>{{ manifest.name if manifest and manifest.name else entry.repo.name }}</strong>
-        {% if entry.validation_errors %}
+    {% set app_name = manifest.name if manifest and manifest.name else entry.repo.name %}
+    <article class="card"
+      data-name="{{ app_name }}"
+      data-description="{{ manifest.description if manifest and manifest.description else "" }}"
+      data-tags="{{ manifest.tags | join(" ") if manifest else "" }}"
+      data-owner="{{ manifest.owner if manifest and manifest.owner else "" }}"
+      data-lifecycle="{{ manifest.lifecycle if manifest and manifest.lifecycle else "" }}"
+      data-status="{{ entry.status.value }}"
+      data-last-deploy="{{ runtime.last_rollout.isoformat() if runtime and runtime.last_rollout else "" }}">
+      <div class="card-head">
+        <h2 class="app-name">{{ app_name }}</h2>
+        <span class="badge status status-{{ entry.status.value }}">{{ status_emoji[entry.status] }} {{ entry.status.value }}</span>
+        {% if manifest and manifest.lifecycle %}
+        <span class="badge lifecycle lifecycle-{{ manifest.lifecycle }}">{{ manifest.lifecycle }}</span>
+        {% endif %}
+      </div>
+      {% if entry.validation_errors %}
+      <p class="invalid-note">
         <span class="badge invalid">invalid metadata</span>
-        <div class="error">{{ entry.validation_errors[0] }}</div>
-        {% endif %}
-        {% if manifest and manifest.description %}
-        <div class="desc">{{ manifest.description }}</div>
-        {% endif %}
-      </td>
-      <td>
-        <span class="status">{{ status_emoji[entry.status] }} {{ entry.status.value }}</span>
-        {% if runtime %}
-          {% if runtime.lookup_error %}
-        <div class="error">{{ runtime.lookup_error }}</div>
-          {% else %}
-        <div class="ready">ready {{ runtime.ready_replicas }}/{{ runtime.desired_replicas }}</div>
-          {% endif %}
-        {% endif %}
-      </td>
-      <td>{{ manifest.lifecycle if manifest and manifest.lifecycle else "—" }}</td>
-      <td>{{ manifest.owner if manifest and manifest.owner else "—" }}</td>
-      <td>{{ runtime.image_tags | join(", ") if runtime and runtime.image_tags else "—" }}</td>
-      <td>{{ runtime.last_rollout | datefmt if runtime else "—" }}</td>
-      <td>{{ entry.repo.last_commit_date | datefmt }}</td>
-      <td class="links">
-        <a href="{{ entry.repo.url }}">repo</a>
+        <span class="error">{{ entry.validation_errors[0] }}</span>
+      </p>
+      {% endif %}
+      {% if manifest and manifest.description %}
+      <p class="desc">{{ manifest.description }}</p>
+      {% endif %}
+      {% if manifest and manifest.tags %}
+      <ul class="tags">
+        {% for tag in manifest.tags %}
+        <li class="tag">{{ tag }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      <dl class="meta">
+        <dt>Owner</dt>
+        <dd class="owner">
+          {%- if manifest and manifest.owner -%}
+            {%- if "@" in manifest.owner -%}
+            <a href="mailto:{{ manifest.owner }}">{{ manifest.owner }}</a>
+            {%- else -%}
+            {{ manifest.owner }}
+            {%- endif -%}
+          {%- else -%}—{%- endif -%}
+        </dd>
+        <dt>Replicas</dt>
+        <dd>
+          {%- if runtime and runtime.lookup_error -%}
+          <span class="error">{{ runtime.lookup_error }}</span>
+          {%- elif runtime -%}
+          <span class="ready">ready {{ runtime.ready_replicas }}/{{ runtime.desired_replicas }}</span>
+          {%- else -%}—{%- endif -%}
+        </dd>
+        <dt>Version</dt>
+        <dd>
+          {%- if runtime and runtime.image_tags -%}
+            {%- for image in runtime.image_tags -%}
+            {%- if not loop.first %}, {% endif -%}
+            <span title="{{ image }}">{{ image.rsplit(":", 1)[-1] if ":" in image else image }}</span>
+            {%- endfor -%}
+          {%- else -%}—{%- endif -%}
+        </dd>
+        <dt>Last deploy</dt>
+        <dd>{{ runtime.last_rollout | datefmt if runtime else "—" }}</dd>
+        <dt>Last commit</dt>
+        <dd>{{ entry.repo.last_commit_date | datefmt }}</dd>
+      </dl>
+      <p class="links">
         {% if manifest %}
           {% for link in manifest.links %}
-        · <a href="{{ link.url }}">{{ link.title if link.title else link.url }}</a>
+        <a href="{{ link.url }}">{{ link.title if link.title else link.url }}</a> ·
           {% endfor %}
         {% endif %}
-      </td>
-    </tr>
+        <a href="{{ entry.repo.url }}">repo</a>
+        {% if entry.repo.has_readme %}
+        · <a href="{{ entry.repo.url }}">README</a>
+        {% endif %}
+      </p>
+    </article>
   {% endfor %}
-  </tbody>
-</table>
+  </div>
+</section>
 
-<section class="gaps">
+{#- Gaps: plain lists for now; issue #12 restyles this section. -#}
+<section id="gaps">
   <h2>Gaps</h2>
 
   <h3>Deployed but not cataloged ({{ catalog.gaps.deployed_uncataloged | length }})</h3>
