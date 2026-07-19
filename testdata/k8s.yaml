@@ -1,0 +1,92 @@
+# Deterministic fake Kubernetes state (testrun mode). One record per
+# Deployment; all timestamps are fixed ISO strings — never generated.
+#
+# Scenario coverage (docs/decisions.md):
+#   healthy (1)              — time-tracker, holiday-planner, invoice-portal,
+#                              asset-inventory, meeting-room-booker,
+#                              app-catalog-nginx (the catalog dogfooding itself, #15)
+#   deployed-uncataloged (5) — status-page (no matching repo)
+#   degraded (6)             — pdf-renderer (1 of 3 ready, recent restarts)
+#   down (7)                 — ldap-sync (0 of 2 ready)
+#   ignore-list candidates   — nginx-ingress, cert-manager (infra workloads;
+#                              excluded from the uncataloged gap via the
+#                              configurable ignore_deployments list)
+# hr-portal and chat-prototype are intentionally ABSENT (scenarios 9 and 8).
+deployments:
+  - namespace: tools
+    name: time-tracker
+    ready_replicas: 2
+    desired_replicas: 2
+    image_tags: ["registry.internal.example.com/tools/time-tracker:1.8.2"]
+    last_rollout: "2026-06-12T10:02:00+00:00"
+    recent_restarts: 0
+  - namespace: tools
+    name: holiday-planner
+    ready_replicas: 1
+    desired_replicas: 1
+    image_tags: ["registry.internal.example.com/tools/holiday-planner:2.3.0"]
+    last_rollout: "2026-05-28T15:11:00+00:00"
+    recent_restarts: 0
+  - namespace: apps
+    name: invoice-portal
+    ready_replicas: 2
+    desired_replicas: 2
+    image_tags: ["registry.internal.example.com/apps/invoice-portal:4.1.7"]
+    last_rollout: "2026-07-02T09:03:00+00:00"
+    recent_restarts: 0
+  - namespace: apps
+    name: asset-inventory
+    ready_replicas: 1
+    desired_replicas: 1
+    image_tags: ["registry.internal.example.com/apps/asset-inventory:0.9.4"]
+    last_rollout: "2026-04-17T12:40:00+00:00"
+    recent_restarts: 0
+  - namespace: tools
+    name: meeting-room-booker
+    ready_replicas: 1
+    desired_replicas: 1
+    image_tags: ["registry.internal.example.com/tools/meeting-room-booker:7.0.1"]
+    last_rollout: "2025-11-03T17:00:00+00:00"
+    recent_restarts: 0
+  - namespace: tools
+    name: app-catalog-nginx
+    ready_replicas: 1
+    desired_replicas: 1
+    image_tags: ["registry.example.com/app-catalog-nginx:1.0.0"]
+    last_rollout: "2026-07-10T09:00:00+00:00"
+    recent_restarts: 0
+  - namespace: tools
+    name: pdf-renderer
+    ready_replicas: 1
+    desired_replicas: 3
+    image_tags: ["registry.internal.example.com/tools/pdf-renderer:3.2.0"]
+    last_rollout: "2026-06-30T08:20:00+00:00"
+    recent_restarts: 4
+  - namespace: apps
+    name: ldap-sync
+    ready_replicas: 0
+    desired_replicas: 2
+    image_tags: ["registry.internal.example.com/apps/ldap-sync:1.4.9"]
+    last_rollout: "2026-02-09T11:00:00+00:00"
+    recent_restarts: 12
+  - namespace: tools
+    name: status-page
+    ready_replicas: 1
+    desired_replicas: 1
+    image_tags: ["registry.internal.example.com/tools/status-page:0.3.1"]
+    last_rollout: "2026-03-05T09:30:00+00:00"
+    recent_restarts: 0
+  - namespace: tools
+    name: nginx-ingress
+    ready_replicas: 2
+    desired_replicas: 2
+    image_tags: ["registry.k8s.io/ingress-nginx/controller:v1.11.2"]
+    last_rollout: "2026-01-20T06:00:00+00:00"
+    recent_restarts: 0
+  - namespace: apps
+    name: cert-manager
+    ready_replicas: 1
+    desired_replicas: 1
+    image_tags: ["quay.io/jetstack/cert-manager-controller:v1.15.3"]
+    last_rollout: "2026-01-20T06:05:00+00:00"
+    recent_restarts: 0

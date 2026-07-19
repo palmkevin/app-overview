@@ -1,0 +1,22 @@
+# Dogfood manifest: the App Catalog registers itself in its own catalog (#15).
+# The k8s annotations must match the deploy manifests of #16 (app-catalog-nginx
+# is the nginx that serves the generated page; it is also on the
+# ignore_deployments list so it never shows up as an uncataloged gap).
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: app-catalog
+  description: Internal web-app catalog page, statically generated from repo metadata and Kubernetes runtime state
+  annotations:
+    ourcompany.io/k8s-deployment: app-catalog-nginx
+    ourcompany.io/k8s-namespace: tools
+  links:
+    - url: https://palmkevin.github.io/app-overview/
+      title: Demo page (GitHub phase)
+    - url: https://github.com/palmkevin/app-overview
+      title: Repository
+  tags: [python, internal-tool]
+spec:
+  type: tool
+  lifecycle: production
+  owner: palmkevin

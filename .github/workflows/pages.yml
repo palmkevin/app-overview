@@ -1,0 +1,74 @@
+# Publishes the testrun-mode demo page to GitHub Pages.
+#
+# GitHub Pages must be configured with source "GitHub Actions"
+# (Settings -> Pages -> Build and deployment -> Source: GitHub Actions).
+# The configure-pages step below tries to enable that automatically
+# (enablement: true); if the token lacks permission the step fails —
+# in that case enable it once manually in the repo settings, then re-run.
+#
+# Triggers: push to main + manual dispatch only — no cron (docs/decisions.md).
+
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run two deployments at once; don't cancel an in-flight production deploy.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install
+        run: pip install -e .[dev]
+
+      # Unit tests only — a broken generator must not be published.
+      # Browser e2e tests (pytest -m e2e) run in ci.yml, not here.
+      - name: Test
+        run: pytest
+
+      - name: Generate testrun catalog
+        # Writes catalog.html + catalog.json into _site/ (the JSON is
+        # intentionally published alongside the page).
+        run: python -m catalog_generator --mode testrun --output _site/
+
+      - name: Serve catalog at the site root
+        run: cp _site/catalog.html _site/index.html
+
+      - name: Configure GitHub Pages
+        # If this step fails: enable Settings -> Pages -> Source: GitHub Actions
+        # once manually (see the header comment), then re-run the workflow.
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

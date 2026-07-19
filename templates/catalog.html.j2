@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+{#-
+  Catalog page (issue #10): header stats, app card grid, status/lifecycle
+  badges, links, runtime-unavailable banner.
+
+  Hard rules: fully self-contained — inline CSS only, ZERO external requests
+  (no CDN, no webfonts, no external images; status icons are emoji).
+  Autoescaping is enabled by the renderer; never use the |safe filter on
+  manifest/fixture data.
+
+  Machine-readable contract for issue #11 (search/filter/sort): every app
+  card is an <article class="card"> inside #app-cards carrying
+  data-name / data-description / data-tags (space-separated) / data-owner /
+  data-lifecycle / data-status / data-last-deploy (ISO-8601 or empty).
+  #11 mounts its controls in the #controls region below the header.
+  The gaps section is <section id="gaps"> (restyled later by #12).
+-#}
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>App Catalog</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto;
+    padding: 1.5rem;
+    max-width: 80rem;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    color: #1f2430;
+    background: #f7f8fa;
+  }
+  h1 { margin: 0 0 0.25rem; font-size: 1.6rem; }
+  h2 { margin: 2rem 0 0.5rem; font-size: 1.2rem; }
+  h3 { margin: 1rem 0 0.25rem; font-size: 1rem; }
+  .stats { margin: 0; color: #5a6172; }
+
+  /* Runtime-unavailable banner: prominent, top of page. */
+  .banner {
+    margin: 0 0 1.25rem;
+    padding: 0.8rem 1rem;
+    border: 2px solid #e0b400;
+    border-radius: 6px;
+    background: #fff7d6;
+    color: #6b5900;
+    font-weight: 600;
+  }
+
+  /* Placeholder region: issue #11 mounts search/filter/sort controls here. */
+  #controls { margin: 1rem 0; }
+
+  /* App card grid: laptop-first, collapses gracefully on narrow screens
+     (min(22rem,100%) keeps cards from overflowing tiny viewports). */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(22rem, 100%), 1fr));
+    gap: 1rem;
+    margin-top: 1.25rem;
+  }
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    padding: 1rem;
+    background: #fff;
+    border: 1px solid #d9dde5;
+    border-radius: 8px;
+  }
+  .card-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem;
+  }
+  .app-name { margin: 0 auto 0 0; font-size: 1.1rem; }
+  .desc { margin: 0; color: #5a6172; font-size: 0.9rem; }
+
+  .badge {
+    display: inline-block;
+    padding: 0.05rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    background: #eef0f4;
+    border: 1px solid #d9dde5;
+    color: #3c4356;
+  }
+  /* Status badges (emoji carries the color; tint the pill too). */
+  .badge.status-healthy      { background: #e6f5e9; border-color: #b5dfc0; color: #1b6e2f; }
+  .badge.status-degraded     { background: #fff4d1; border-color: #ecd489; color: #7a5f00; }
+  .badge.status-down         { background: #fbe3e4; border-color: #e5a0a6; color: #8f1f28; }
+  .badge.status-not-deployed { background: #f1f2f5; border-color: #d9dde5; color: #5a6172; }
+  .badge.status-unknown      { background: #f1f2f5; border-color: #d9dde5; color: #5a6172; }
+  /* Lifecycle badges: visually distinct colors per lifecycle. */
+  .badge.lifecycle-experimental { background: #e9e4f9; border-color: #c7b8ee; color: #4b2e83; }
+  .badge.lifecycle-production   { background: #e2ecfb; border-color: #a9c4ec; color: #1d4e9e; }
+  .badge.lifecycle-deprecated   { background: #f7e8d8; border-color: #e2c39a; color: #8a5a16; }
+  .badge.invalid { background: #fbe3e4; border-color: #e5a0a6; color: #8f1f28; }
+
+  .error { color: #8f1f28; font-size: 0.8rem; overflow-wrap: anywhere; }
+  .invalid-note { margin: 0; }
+
+  .tags { list-style: none; display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0; padding: 0; }
+  .tag {
+    padding: 0 0.45rem;
+    border-radius: 999px;
+    background: #eef0f4;
+    border: 1px solid #d9dde5;
+    color: #5a6172;
+    font-size: 0.75rem;
+  }
+
+  .meta {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.15rem 0.75rem;
+    margin: 0;
+    font-size: 0.85rem;
+  }
+  .meta dt { color: #8a90a0; }
+  .meta dd { margin: 0; overflow-wrap: anywhere; }
+  .ready { color: #5a6172; }
+
+  .links { margin: auto 0 0; padding-top: 0.35rem; border-top: 1px solid #eef0f4; font-size: 0.85rem; }
+  .links a { white-space: nowrap; }
+
+  #gaps ul { margin: 0.25rem 0; }
+  .empty { color: #5a6172; }
+  footer { margin-top: 2rem; color: #8a90a0; font-size: 0.8rem; }
+</style>
+<style>
+  /* Search / filter / sort controls (issue #11) — inline only, no webfonts. */
+  #controls { display: flex; flex-direction: column; gap: 0.5rem; margin: 1rem 0; }
+  .control-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
+  #search {
+    flex: 1 1 16rem;
+    max-width: 28rem;
+    padding: 0.45rem 0.7rem;
+    border: 1px solid #d9dde5;
+    border-radius: 6px;
+    font: inherit;
+    background: #fff;
+    color: #1f2430;
+  }
+  .sort-label { color: #5a6172; font-size: 0.85rem; }
+  #sort {
+    font: inherit;
+    font-size: 0.85rem;
+    padding: 0.25rem 0.4rem;
+    border: 1px solid #d9dde5;
+    border-radius: 6px;
+    background: #fff;
+    color: #1f2430;
+  }
+  #result-count { margin-left: auto; color: #5a6172; font-size: 0.85rem; }
+  .chip-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.4rem; }
+  .chip-row-label {
+    min-width: 4.5rem;
+    color: #8a90a0;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .chip {
+    padding: 0.15rem 0.7rem;
+    border-radius: 999px;
+    border: 1px solid #d9dde5;
+    background: #fff;
+    color: #3c4356;
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+  .chip:hover { border-color: #a9b2c2; }
+  /* Active chips: visually distinct + machine-readable via aria-pressed. */
+  .chip[aria-pressed="true"] { background: #1d4e9e; border-color: #1d4e9e; color: #fff; }
+  /* .card sets display:flex, which would defeat the UA [hidden] rule. */
+  .card[hidden], #empty-state[hidden] { display: none; }
+  #empty-state { margin: 1.25rem 0; }
+</style>
+<style>
+  /* Gaps section (issue #12) — three always-visible sub-lists as soft-toned
+     cards, consistent with the app-card CSS above. Warning tones, not
+     alarmist: amber for coverage gaps, soft red for invalid metadata. */
+  .gap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(22rem, 100%), 1fr));
+    gap: 1rem;
+    margin-top: 0.75rem;
+  }
+  .gap-card {
+    padding: 1rem;
+    border: 1px solid #d9dde5;
+    border-radius: 8px;
+    background: #fff;
+  }
+  .gap-card h3 { margin: 0 0 0.5rem; font-size: 0.95rem; }
+  .gap-card.tone-amber { background: #fffaea; border-color: #ecd489; }
+  .gap-card.tone-amber h3 { color: #7a5f00; }
+  .gap-card.tone-red { background: #fdf3f4; border-color: #e5a0a6; }
+  .gap-card.tone-red h3 { color: #8f1f28; }
+  .gap-count {
+    display: inline-block;
+    min-width: 1.4rem;
+    padding: 0.05rem 0.45rem;
+    border-radius: 999px;
+    background: rgba(31, 36, 48, 0.08);
+    font-size: 0.8rem;
+    text-align: center;
+  }
+  #gaps .gap-list { margin: 0; padding-left: 1.2rem; font-size: 0.85rem; }
+  .gap-list li { margin: 0.25rem 0; overflow-wrap: anywhere; }
+  .gap-detail { color: #5a6172; }
+  .gap-error { display: block; color: #8f1f28; font-size: 0.8rem; overflow-wrap: anywhere; }
+  /* Green all-clear state when a sub-list is empty. */
+  .gap-empty {
+    display: inline-block;
+    margin: 0;
+    padding: 0.2rem 0.6rem;
+    border: 1px solid #b5dfc0;
+    border-radius: 999px;
+    background: #e6f5e9;
+    color: #1b6e2f;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+{% if not catalog.runtime_available %}
+<div id="runtime-banner" class="banner" role="alert">
+  ⚠️ Runtime data unavailable since
+  {{ catalog.runtime_unavailable_since | datefmt if catalog.runtime_unavailable_since else "an unknown time" }}
+  — statuses and deployment details cannot be shown.
+</div>
+{% endif %}
+
+<header id="header">
+  <h1>App Catalog</h1>
+  <p class="stats" id="stats">
+    {{ catalog.entries | length }} apps
+    · {{ catalog.coverage.cataloged }} of {{ catalog.coverage.total }} repos cataloged
+    ({{ "%.0f" | format(catalog.coverage.percent) }}%)
+    · generated {{ catalog.generated_at | datefmt }}
+  </p>
+</header>
+
+{#-
+  Search / filter / sort controls (issue #11). All wiring lives in the single
+  inline <script> at the end of <body> — vanilla JS, no libraries, works from
+  file:// (no fetch, no modules). Filters combine as AND between the three
+  groups (search, lifecycle, status) and OR within a chip group.
+
+  Fixed sort orders (deterministic; ties always fall back to name ascending):
+    name        — ascending, case-insensitive (default)
+    status      — worst problems first: down, degraded, unknown,
+                  not-deployed, healthy
+    last-deploy — newest first; cards WITHOUT a data-last-deploy sort LAST
+    lifecycle   — stage order: experimental, production, deprecated;
+                  cards without a lifecycle sort LAST
+-#}
+<div id="controls">
+  <div class="control-row">
+    <input id="search" type="search" autocomplete="off"
+           placeholder="Search name, description, tags, owner…"
+           aria-label="Search apps">
+    <label class="sort-label" for="sort">Sort by
+      <select id="sort">
+        <option value="name" selected>name</option>
+        <option value="status">status</option>
+        <option value="last-deploy">last deploy</option>
+        <option value="lifecycle">lifecycle</option>
+      </select>
+    </label>
+    <span id="result-count" aria-live="polite">{{ catalog.entries | length }} of {{ catalog.entries | length }} apps</span>
+  </div>
+  <div class="chip-row" role="group" aria-label="Filter by lifecycle">
+    <span class="chip-row-label">lifecycle</span>
+    {% for lifecycle in ("experimental", "production", "deprecated") %}
+    <button type="button" class="chip" data-group="lifecycle"
+            data-value="{{ lifecycle }}" aria-pressed="false">{{ lifecycle }}</button>
+    {% endfor %}
+  </div>
+  <div class="chip-row" role="group" aria-label="Filter by status">
+    <span class="chip-row-label">status</span>
+    {#- Chip per Status enum member — iterating status_emoji keeps the chip
+        set in lock-step with the statuses the cards can actually carry. -#}
+    {% for status in status_emoji %}
+    <button type="button" class="chip" data-group="status"
+            data-value="{{ status.value }}" aria-pressed="false">{{ status.value }}</button>
+    {% endfor %}
+  </div>
+</div>
+
+<main>
+<section id="apps">
+  <div id="app-cards" class="card-grid">
+  {% for entry in catalog.entries %}
+    {% set manifest = entry.manifest %}
+    {% set runtime = entry.runtime %}
+    {% set app_name = manifest.name if manifest and manifest.name else entry.repo.name %}
+    <article class="card"
+      data-name="{{ app_name }}"
+      data-description="{{ manifest.description if manifest and manifest.description else "" }}"
+      data-tags="{{ manifest.tags | join(" ") if manifest else "" }}"
+      data-owner="{{ manifest.owner if manifest and manifest.owner else "" }}"
+      data-lifecycle="{{ manifest.lifecycle if manifest and manifest.lifecycle else "" }}"
+      data-status="{{ entry.status.value }}"
+      data-last-deploy="{{ runtime.last_rollout.isoformat() if runtime and runtime.last_rollout else "" }}">
+      <div class="card-head">
+        <h2 class="app-name">{{ app_name }}</h2>
+        <span class="badge status status-{{ entry.status.value }}">{{ status_emoji[entry.status] }} {{ entry.status.value }}</span>
+        {% if manifest and manifest.lifecycle %}
+        <span class="badge lifecycle lifecycle-{{ manifest.lifecycle }}">{{ manifest.lifecycle }}</span>
+        {% endif %}
+      </div>
+      {% if entry.validation_errors %}
+      <p class="invalid-note">
+        <span class="badge invalid">invalid metadata</span>
+        <span class="error">{{ entry.validation_errors[0] }}</span>
+      </p>
+      {% endif %}
+      {% if manifest and manifest.description %}
+      <p class="desc">{{ manifest.description }}</p>
+      {% endif %}
+      {% if manifest and manifest.tags %}
+      <ul class="tags">
+        {% for tag in manifest.tags %}
+        <li class="tag">{{ tag }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      <dl class="meta">
+        <dt>Owner</dt>
+        <dd class="owner">
+          {%- if manifest and manifest.owner -%}
+            {%- if "@" in manifest.owner -%}
+            <a href="mailto:{{ manifest.owner }}">{{ manifest.owner }}</a>
+            {%- else -%}
+            {{ manifest.owner }}
+            {%- endif -%}
+          {%- else -%}—{%- endif -%}
+        </dd>
+        <dt>Replicas</dt>
+        <dd>
+          {%- if runtime and runtime.lookup_error -%}
+          <span class="error">{{ runtime.lookup_error }}</span>
+          {%- elif runtime -%}
+          <span class="ready">ready {{ runtime.ready_replicas }}/{{ runtime.desired_replicas }}</span>
+          {%- else -%}—{%- endif -%}
+        </dd>
+        <dt>Version</dt>
+        <dd>
+          {%- if runtime and runtime.image_tags -%}
+            {%- for image in runtime.image_tags -%}
+            {%- if not loop.first %}, {% endif -%}
+            <span title="{{ image }}">{{ image.rsplit(":", 1)[-1] if ":" in image else image }}</span>
+            {%- endfor -%}
+          {%- else -%}—{%- endif -%}
+        </dd>
+        <dt>Last deploy</dt>
+        <dd>{{ runtime.last_rollout | datefmt if runtime else "—" }}</dd>
+        <dt>Last commit</dt>
+        <dd>{{ entry.repo.last_commit_date | datefmt }}</dd>
+      </dl>
+      <p class="links">
+        {% if manifest %}
+          {% for link in manifest.links %}
+        <a href="{{ link.url }}">{{ link.title if link.title else link.url }}</a> ·
+          {% endfor %}
+        {% endif %}
+        <a href="{{ entry.repo.url }}">repo</a>
+        {% if entry.repo.has_readme %}
+        · <a href="{{ entry.repo.url }}">README</a>
+        {% endif %}
+      </p>
+    </article>
+  {% endfor %}
+  </div>
+  {#- Empty state for issue #11's search/filter (shown by the inline JS). -#}
+  <p id="empty-state" class="empty" hidden>No apps match the current search and filters.</p>
+</section>
+
+{#-
+  Gaps section (issue #12): three always-visible sub-lists (PRD §6.3), no
+  toggle/collapse. Counts live in each heading; an empty sub-list shows a
+  green all-clear state instead. Cataloged-not-deployed and invalid-metadata
+  entries carry an AppEntry and link to their repo; deployed-uncataloged
+  entries are raw RuntimeStates — there is no repo to link to.
+-#}
+<section id="gaps">
+  <h2>Gaps</h2>
+  <div class="gap-grid">
+
+    <article class="gap-card tone-amber" id="gap-deployed-uncataloged">
+      <h3>Deployed but not cataloged
+        <span class="gap-count">{{ catalog.gaps.deployed_uncataloged | length }}</span></h3>
+      {% if catalog.gaps.deployed_uncataloged %}
+      <ul class="gap-list">
+        {% for dep in catalog.gaps.deployed_uncataloged %}
+        <li>
+          <code>{{ dep.namespace }}/{{ dep.deployment_name }}</code>
+          <span class="gap-detail">— ready {{ dep.ready_replicas }}/{{ dep.desired_replicas }}
+            {%- if dep.image_tags %} ({{ dep.image_tags | join(", ") }}){% endif %}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="gap-empty">No gaps 🎉</p>
+      {% endif %}
+    </article>
+
+    <article class="gap-card tone-amber" id="gap-cataloged-not-deployed">
+      <h3>Cataloged but not deployed
+        <span class="gap-count">{{ catalog.gaps.cataloged_not_deployed | length }}</span></h3>
+      {% if catalog.gaps.cataloged_not_deployed %}
+      <ul class="gap-list">
+        {% for entry in catalog.gaps.cataloged_not_deployed %}
+        <li>
+          <a href="{{ entry.repo.url }}">{{ entry.manifest.name if entry.manifest and entry.manifest.name else entry.repo.name }}</a>
+          {%- if entry.manifest and entry.manifest.lifecycle %}
+          <span class="gap-detail">({{ entry.manifest.lifecycle }})</span>
+          {%- endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="gap-empty">No gaps 🎉</p>
+      {% endif %}
+    </article>
+
+    <article class="gap-card tone-red" id="gap-invalid-metadata">
+      <h3>Invalid metadata
+        <span class="gap-count">{{ catalog.gaps.invalid_metadata | length }}</span></h3>
+      {% if catalog.gaps.invalid_metadata %}
+      <ul class="gap-list">
+        {% for entry in catalog.gaps.invalid_metadata %}
+        <li>
+          <a href="{{ entry.repo.url }}">{{ entry.repo.name }}</a>
+          {% for error in entry.validation_errors %}
+          <span class="gap-error">{{ error }}</span>
+          {% endfor %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="gap-empty">No gaps 🎉</p>
+      {% endif %}
+    </article>
+
+  </div>
+</section>
+</main>
+
+<footer>
+  Generated {{ catalog.generated_at | datefmt }} · self-contained page, no external requests.
+</footer>
+
+{#-
+  Issue #11: the ONE inline script — instant search, filter chips, sort.
+  Vanilla JS only, no libraries, no fetch/modules; everything is read from
+  the cards' data-* attributes so it works from file://. Sort orders are
+  documented on the #controls block above.
+-#}
+<script>
+(function () {
+  "use strict";
+
+  var grid = document.getElementById("app-cards");
+  var cards = Array.prototype.slice.call(grid.querySelectorAll("article.card"));
+  var searchBox = document.getElementById("search");
+  var sortSelect = document.getElementById("sort");
+  var resultCount = document.getElementById("result-count");
+  var emptyState = document.getElementById("empty-state");
+  var chips = Array.prototype.slice.call(document.querySelectorAll("#controls .chip"));
+
+  /* Fixed sort orders — see the template comment on #controls. Values not
+     listed (e.g. a missing lifecycle) rank AFTER every listed value. */
+  var STATUS_ORDER = ["down", "degraded", "unknown", "not-deployed", "healthy"];
+  var LIFECYCLE_ORDER = ["experimental", "production", "deprecated"];
+
+  function rank(order, value) {
+    var index = order.indexOf(value);
+    return index === -1 ? order.length : index;
+  }
+
+  function byName(a, b) {
+    var na = a.dataset.name.toLowerCase();
+    var nb = b.dataset.name.toLowerCase();
+    return na < nb ? -1 : na > nb ? 1 : 0;
+  }
+
+  var comparators = {
+    name: byName,
+    status: function (a, b) {
+      return rank(STATUS_ORDER, a.dataset.status) -
+             rank(STATUS_ORDER, b.dataset.status) || byName(a, b);
+    },
+    lifecycle: function (a, b) {
+      return rank(LIFECYCLE_ORDER, a.dataset.lifecycle) -
+             rank(LIFECYCLE_ORDER, b.dataset.lifecycle) || byName(a, b);
+    },
+    "last-deploy": function (a, b) {
+      var ta = Date.parse(a.dataset.lastDeploy);  // NaN when empty/absent
+      var tb = Date.parse(b.dataset.lastDeploy);
+      if (isNaN(ta) && isNaN(tb)) { return byName(a, b); }
+      if (isNaN(ta)) { return 1; }   // no deploy date sorts LAST
+      if (isNaN(tb)) { return -1; }
+      return tb - ta || byName(a, b);  // newest first
+    }
+  };
+
+  function activeValues(group) {
+    return chips.filter(function (chip) {
+      return chip.dataset.group === group &&
+             chip.getAttribute("aria-pressed") === "true";
+    }).map(function (chip) { return chip.dataset.value; });
+  }
+
+  /* AND between groups (search, lifecycle, status); OR within a group.
+     An empty chip group means "no filter" for that group. */
+  function matches(card, query, lifecycles, statuses) {
+    if (lifecycles.length && lifecycles.indexOf(card.dataset.lifecycle) === -1) { return false; }
+    if (statuses.length && statuses.indexOf(card.dataset.status) === -1) { return false; }
+    if (!query) { return true; }
+    var haystack = (card.dataset.name + " " + card.dataset.description + " " +
+                    card.dataset.tags + " " + card.dataset.owner).toLowerCase();
+    return haystack.indexOf(query) !== -1;
+  }
+
+  function apply() {
+    var query = searchBox.value.trim().toLowerCase();
+    var lifecycles = activeValues("lifecycle");
+    var statuses = activeValues("status");
+    cards.sort(comparators[sortSelect.value] || comparators.name);
+    var shown = 0;
+    cards.forEach(function (card) {
+      var visible = matches(card, query, lifecycles, statuses);
+      card.hidden = !visible;
+      if (visible) { shown += 1; }
+      grid.appendChild(card);  // reorder the DOM to match the sort
+    });
+    resultCount.textContent = shown + " of " + cards.length + " apps";
+    emptyState.hidden = shown !== 0;
+  }
+
+  searchBox.addEventListener("input", apply);
+  sortSelect.addEventListener("change", apply);
+  chips.forEach(function (chip) {
+    chip.addEventListener("click", function () {
+      var pressed = chip.getAttribute("aria-pressed") === "true";
+      chip.setAttribute("aria-pressed", pressed ? "false" : "true");
+      apply();
+    });
+  });
+
+  apply();
+})();
+</script>
+</body>
+</html>

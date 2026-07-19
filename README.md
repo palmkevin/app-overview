@@ -9,6 +9,14 @@ no backend, no database.
 > It currently lives on GitHub and will migrate to the company Bitbucket/Jenkins/k3s
 > infrastructure later.
 
+## Live demo
+
+**<https://palmkevin.github.io/app-overview/>**
+
+The demo shows deterministic **testrun-mode** data — fake apps from the fixtures in
+`testdata/`, not real ones. It is regenerated and redeployed on every push to `main`
+by [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
+
 ## How it works
 
 1. Every app repo declares metadata in a `catalog-info.yaml` at its root
@@ -28,20 +36,26 @@ no backend, no database.
 - **`live`** — real Bitbucket + Kubernetes APIs. Usable only after migration to the
   company infrastructure.
 
+Everything downstream of the source interfaces is identical in both modes; only the
+adapters differ. The mode split and testrun fixtures are specified in
+[docs/decisions.md](docs/decisions.md).
+
 ## Documentation
 
 - [PRD.md](PRD.md) — full product requirements
 - [docs/decisions.md](docs/decisions.md) — binding implementation decisions and the
   testrun-mode specification
-- `docs/schema.md` — `catalog-info.yaml` reference for app developers (issue #3)
+- [docs/schema.md](docs/schema.md) — `catalog-info.yaml` reference for app developers
 
 ## Development
 
 ```bash
-pip install -e .[dev]
-pytest
-ruff check .
-python -m catalog_generator --mode testrun --output out/
+pip install -e .[dev]                                    # setup (pytest + ruff included)
+pytest                                                   # unit tests (e2e excluded)
+pytest -m e2e                                            # browser e2e tests (later issue)
+ruff check .                                             # lint
+python -m catalog_generator --mode testrun --output out/ # generate the page
+python -m catalog_generator --mode testrun --scenario runtime-unavailable --output out/
 ```
 
 Requires Python 3.14. See [CLAUDE.md](CLAUDE.md) for the working conventions and

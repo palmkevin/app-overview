@@ -1,0 +1,14 @@
+# Scenario 7: valid manifest, DOWN at runtime (ready == 0).
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ldap-sync
+  description: Synchronizes directory accounts into internal app databases
+  annotations:
+    ourcompany.io/k8s-deployment: ldap-sync
+    ourcompany.io/k8s-namespace: apps
+  tags: [python, it-ops]
+spec:
+  type: service
+  lifecycle: production
+  owner: marc.weber

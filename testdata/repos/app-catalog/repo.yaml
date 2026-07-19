@@ -1,0 +1,5 @@
+# Dogfood: the catalog's own repo (issue #15). Deterministic fixed timestamps.
+url: https://github.com/palmkevin/app-overview
+default_branch: main
+last_commit_date: "2026-07-10T08:15:00+00:00"
+has_readme: true

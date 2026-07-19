@@ -1,0 +1,23 @@
+# App Catalog generator — GitHub-phase testrun configuration.
+#
+# Picked up by default by `python -m catalog_generator` (CLI default --config).
+# Used for CI, the hosted GitHub Pages demo, and e2e tests. Live-mode keys are
+# intentionally absent — they are written during the Bitbucket/Jenkins
+# migration (see issue #18). See config.example.yaml for the full reference.
+
+mode: testrun
+
+# "ourcompany.io" is only the default placeholder prefix; the real value is
+# set at migration time (config-only change).
+annotation_prefix: ourcompany.io
+
+testdata_dir: testdata
+
+output_dir: out
+
+# Infra workloads excluded from the "deployed but not cataloged" gap check
+# (regexes matched against the Deployment name).
+ignore_deployments:
+  - nginx-ingress.*
+  - cert-manager.*
+  - app-catalog-nginx

@@ -1,0 +1,20 @@
+# Dogfood: mirrors the manifest at the repo root — the catalog lists itself
+# as a healthy production tool (issue #15).
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: app-catalog
+  description: Internal web-app catalog page, statically generated from repo metadata and Kubernetes runtime state
+  annotations:
+    ourcompany.io/k8s-deployment: app-catalog-nginx
+    ourcompany.io/k8s-namespace: tools
+  links:
+    - url: https://palmkevin.github.io/app-overview/
+      title: Demo page (GitHub phase)
+    - url: https://github.com/palmkevin/app-overview
+      title: Repository
+  tags: [python, internal-tool]
+spec:
+  type: tool
+  lifecycle: production
+  owner: palmkevin

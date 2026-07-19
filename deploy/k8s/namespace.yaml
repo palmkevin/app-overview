@@ -1,0 +1,9 @@
+# Namespace for internal tooling. The name "tools" MUST match the
+# k8s-namespace annotation in the root catalog-info.yaml (the catalog
+# dogfoods itself; tests/test_deploy_manifests.py enforces the match).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tools
+  labels:
+    app.kubernetes.io/managed-by: app-catalog-deploy

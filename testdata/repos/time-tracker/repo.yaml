@@ -1,0 +1,5 @@
+# Fixture repo metadata (deterministic — fixed timestamps only).
+url: https://git.internal.example.com/projects/TOOLS/repos/time-tracker
+default_branch: main
+last_commit_date: "2026-06-12T09:41:00+00:00"
+has_readme: true

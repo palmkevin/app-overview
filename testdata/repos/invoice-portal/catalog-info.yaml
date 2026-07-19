@@ -1,0 +1,19 @@
+# Scenario 1: valid, healthy production app (service).
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: invoice-portal
+  description: REST backend for supplier invoice intake and approval
+  annotations:
+    ourcompany.io/k8s-deployment: invoice-portal
+    ourcompany.io/k8s-namespace: apps
+  links:
+    - url: https://invoices.internal.example.com/api/docs
+      title: API docs
+    - url: https://wiki.internal.example.com/x/invoice-portal-runbook
+      title: Runbook
+  tags: [spring-boot, finance]
+spec:
+  type: service
+  lifecycle: production
+  owner: sara.klein
