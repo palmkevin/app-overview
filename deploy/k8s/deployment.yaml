@@ -1,0 +1,65 @@
+# nginx serving the generated catalog page.
+#
+# The Deployment name "app-catalog-nginx" and namespace "tools" MUST match
+# the k8s-deployment / k8s-namespace annotations in the root
+# catalog-info.yaml (enforced by tests/test_deploy_manifests.py).
+#
+# Content mechanism — ConfigMap (decision, see deploy/README.md):
+#   The page is published as a ConfigMap ("catalog-html", created by
+#   deploy/publish.sh — intentionally NOT a manifest here) and mounted
+#   read-only over /usr/share/nginx/html. Updates propagate to the running
+#   pod via the kubelet sync loop (typically <1 minute), no redeploy needed.
+#   CAVEAT: a ConfigMap is capped at ~1 MiB. catalog.html + catalog.json are
+#   far below that today; if the catalog ever outgrows the cap, switch to the
+#   PVC fallback documented in deploy/README.md (small RWO PVC + a publish
+#   step that copies the files into the volume).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-catalog-nginx
+  namespace: tools
+  labels:
+    app.kubernetes.io/name: app-catalog-nginx
+    app.kubernetes.io/part-of: app-catalog
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: app-catalog-nginx
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: app-catalog-nginx
+        app.kubernetes.io/part-of: app-catalog
+    spec:
+      containers:
+        - name: nginx
+          # Public placeholder image; replace with the internal registry
+          # mirror after migration (e.g. registry.internal.example.com/...).
+          image: nginx:stable-alpine
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 10
+          volumeMounts:
+            - name: catalog-html
+              mountPath: /usr/share/nginx/html
+              readOnly: true
+      volumes:
+        - name: catalog-html
+          configMap:
+            # Created/updated by deploy/publish.sh — run it once before (or
+            # after) the first apply; the pod stays unready until it exists.
+            name: catalog-html

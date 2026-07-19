@@ -1,0 +1,45 @@
+# RBAC for the GENERATOR (not for nginx): the read-only ServiceAccount the
+# future Jenkins job uses to query runtime state cluster-wide (PRD §7 —
+# read-only cluster-wide access approved).
+#
+# The ClusterRole grants EXACTLY get+list on deployments, replicasets, pods
+# and namespaces. No secrets access, no write verbs, no watch. The token for
+# this ServiceAccount lives in the Jenkins credentials store and reaches the
+# generator only via the env var named in config (kubernetes.token_env);
+# it is never written to a config file or the generated page.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: app-catalog-generator
+  namespace: tools
+  labels:
+    app.kubernetes.io/part-of: app-catalog
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: app-catalog-generator-readonly
+  labels:
+    app.kubernetes.io/part-of: app-catalog
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods", "namespaces"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: app-catalog-generator-readonly
+  labels:
+    app.kubernetes.io/part-of: app-catalog
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: app-catalog-generator-readonly
+subjects:
+  - kind: ServiceAccount
+    name: app-catalog-generator
+    namespace: tools

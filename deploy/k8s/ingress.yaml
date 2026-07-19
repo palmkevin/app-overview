@@ -1,0 +1,32 @@
+# Ingress for the catalog page — INTERNAL NETWORK ONLY (PRD §7: no public
+# exposure). Host is a placeholder; set the real internal hostname after
+# migration. No TLS section on purpose: no TLS secrets in this repo — if
+# TLS terminates at the ingress, wire the cert via the cluster's cert
+# mechanism after migration.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-catalog-nginx
+  namespace: tools
+  labels:
+    app.kubernetes.io/name: app-catalog-nginx
+    app.kubernetes.io/part-of: app-catalog
+  # Internal-only annotation placeholders — uncomment/adapt to the real
+  # ingress controller after migration (k3s ships Traefik by default):
+  # annotations:
+  #   # Traefik: restrict to the internal entrypoint
+  #   traefik.ingress.kubernetes.io/router.entrypoints: web
+  #   # ingress-nginx alternative: allow only internal ranges (placeholder CIDR)
+  #   nginx.ingress.kubernetes.io/whitelist-source-range: 10.0.0.0/8
+spec:
+  rules:
+    - host: apps.internal.example.com  # placeholder — real internal host after migration
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: app-catalog-nginx
+                port:
+                  name: http

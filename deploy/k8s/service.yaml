@@ -1,0 +1,17 @@
+# ClusterIP Service in front of the catalog nginx.
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-catalog-nginx
+  namespace: tools
+  labels:
+    app.kubernetes.io/name: app-catalog-nginx
+    app.kubernetes.io/part-of: app-catalog
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: app-catalog-nginx
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
