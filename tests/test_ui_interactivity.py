@@ -48,10 +48,17 @@ def html(catalog) -> str:
 
 @pytest.fixture(scope="module")
 def script(html: str) -> str:
-    """Body of the page's inline <script> block(s)."""
+    """Body of the page's single <script> block at the end of <body>.
+
+    Since issue #21 the page carries exactly one more script: the tiny
+    blocking theme script in <head>, which must run before first paint and
+    therefore cannot be merged into the body script.
+    """
     blocks = re.findall(r"<script>(.*?)</script>", html, re.DOTALL)
-    assert len(blocks) == 1, "expected exactly ONE inline script block"
-    return blocks[0]
+    assert len(blocks) == 2, "expected the head theme script + ONE body script"
+    body_blocks = [b for b in blocks if "app-cards" in b]
+    assert len(body_blocks) == 1, "controls script not found"
+    return body_blocks[0]
 
 
 # --- controls markup ----------------------------------------------------------

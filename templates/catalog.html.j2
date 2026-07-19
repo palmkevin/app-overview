@@ -20,8 +20,47 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>App Catalog</title>
+<script>
+  // Issue #21: applied before first paint (blocking <head> script) to avoid a
+  // flash of the wrong theme. No saved choice yet -> follow the OS/browser
+  // preference (prefers-color-scheme). Same mechanism as Jenkins-UT-Analyzer.
+  (function () {
+    var saved = null;
+    try { saved = localStorage.getItem("catalog-theme"); } catch (e) { /* storage disabled */ }
+    var theme = saved || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", theme);
+  })();
+</script>
 <style>
-  :root { color-scheme: light; }
+  /* Theme tokens (issue #21). Light is the default; the dark values mirror the
+     Jenkins-UT-Analyzer theme (Material dark surfaces: #121212 page, #1e1e1e
+     elevated card surface) so both internal apps share one look. Accent
+     colours that have no sensible token (badge/gap/banner tints) are re-tuned
+     in the [data-theme="dark"] override block at the end of this stylesheet. */
+  :root {
+    color-scheme: light;
+    --bg: #f7f8fa;
+    --surface: #fff;
+    --text: #1f2430;
+    --muted: #5a6172;
+    --faint: #8a90a0;
+    --border: #d9dde5;
+    --divider: #eef0f4;
+    --chip-bg: #eef0f4;
+    --link: #1d4e9e;
+  }
+  [data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #121212;
+    --surface: #1e1e1e;
+    --text: rgba(255, 255, 255, 0.87);
+    --muted: #9aa1a9;
+    --faint: #848b94;
+    --border: rgba(255, 255, 255, 0.12);
+    --divider: rgba(255, 255, 255, 0.08);
+    --chip-bg: #2b2f36;
+    --link: #8ab4f8;
+  }
   * { box-sizing: border-box; }
   body {
     margin: 0 auto;
@@ -30,13 +69,37 @@
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     font-size: 0.95rem;
     line-height: 1.45;
-    color: #1f2430;
-    background: #f7f8fa;
+    color: var(--text);
+    background: var(--bg);
   }
+  a { color: var(--link); }
   h1 { margin: 0 0 0.25rem; font-size: 1.6rem; }
   h2 { margin: 2rem 0 0.5rem; font-size: 1.2rem; }
   h3 { margin: 1rem 0 0.25rem; font-size: 1rem; }
-  .stats { margin: 0; color: #5a6172; }
+  .stats { margin: 0; color: var(--muted); }
+
+  /* Header row: title left, theme toggle right (issue #21). */
+  .header-row { display: flex; align-items: center; gap: 0.75rem; }
+  .header-row h1 { margin-right: auto; }
+  .theme-toggle {
+    width: 2.2rem;
+    height: 2.2rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .theme-toggle:hover { color: var(--text); }
+  .theme-toggle svg { width: 1.2rem; height: 1.2rem; fill: currentColor; }
+  /* Moon in dark mode, sun in light mode — same convention as UT Analyzer. */
+  .theme-toggle .icon-moon { display: none; }
+  [data-theme="dark"] .theme-toggle .icon-moon { display: block; }
+  [data-theme="dark"] .theme-toggle .icon-sun { display: none; }
 
   /* Runtime-unavailable banner: prominent, top of page. */
   .banner {
@@ -65,8 +128,8 @@
     flex-direction: column;
     gap: 0.55rem;
     padding: 1rem;
-    background: #fff;
-    border: 1px solid #d9dde5;
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 8px;
   }
   .card-head {
@@ -76,7 +139,7 @@
     gap: 0.4rem;
   }
   .app-name { margin: 0 auto 0 0; font-size: 1.1rem; }
-  .desc { margin: 0; color: #5a6172; font-size: 0.9rem; }
+  .desc { margin: 0; color: var(--muted); font-size: 0.9rem; }
 
   .badge {
     display: inline-block;
@@ -85,8 +148,8 @@
     font-size: 0.75rem;
     font-weight: 600;
     white-space: nowrap;
-    background: #eef0f4;
-    border: 1px solid #d9dde5;
+    background: var(--chip-bg);
+    border: 1px solid var(--border);
     color: #3c4356;
   }
   /* Status badges (emoji carries the color; tint the pill too). */
@@ -108,9 +171,9 @@
   .tag {
     padding: 0 0.45rem;
     border-radius: 999px;
-    background: #eef0f4;
-    border: 1px solid #d9dde5;
-    color: #5a6172;
+    background: var(--chip-bg);
+    border: 1px solid var(--border);
+    color: var(--muted);
     font-size: 0.75rem;
   }
 
@@ -121,16 +184,16 @@
     margin: 0;
     font-size: 0.85rem;
   }
-  .meta dt { color: #8a90a0; }
+  .meta dt { color: var(--faint); }
   .meta dd { margin: 0; overflow-wrap: anywhere; }
-  .ready { color: #5a6172; }
+  .ready { color: var(--muted); }
 
-  .links { margin: auto 0 0; padding-top: 0.35rem; border-top: 1px solid #eef0f4; font-size: 0.85rem; }
+  .links { margin: auto 0 0; padding-top: 0.35rem; border-top: 1px solid var(--divider); font-size: 0.85rem; }
   .links a { white-space: nowrap; }
 
   #gaps ul { margin: 0.25rem 0; }
-  .empty { color: #5a6172; }
-  footer { margin-top: 2rem; color: #8a90a0; font-size: 0.8rem; }
+  .empty { color: var(--muted); }
+  footer { margin-top: 2rem; color: var(--faint); font-size: 0.8rem; }
 </style>
 <style>
   /* Search / filter / sort controls (issue #11) — inline only, no webfonts. */
@@ -140,27 +203,27 @@
     flex: 1 1 16rem;
     max-width: 28rem;
     padding: 0.45rem 0.7rem;
-    border: 1px solid #d9dde5;
+    border: 1px solid var(--border);
     border-radius: 6px;
     font: inherit;
-    background: #fff;
-    color: #1f2430;
+    background: var(--surface);
+    color: var(--text);
   }
-  .sort-label { color: #5a6172; font-size: 0.85rem; }
+  .sort-label { color: var(--muted); font-size: 0.85rem; }
   #sort {
     font: inherit;
     font-size: 0.85rem;
     padding: 0.25rem 0.4rem;
-    border: 1px solid #d9dde5;
+    border: 1px solid var(--border);
     border-radius: 6px;
-    background: #fff;
-    color: #1f2430;
+    background: var(--surface);
+    color: var(--text);
   }
-  #result-count { margin-left: auto; color: #5a6172; font-size: 0.85rem; }
+  #result-count { margin-left: auto; color: var(--muted); font-size: 0.85rem; }
   .chip-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.4rem; }
   .chip-row-label {
     min-width: 4.5rem;
-    color: #8a90a0;
+    color: var(--faint);
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -168,8 +231,8 @@
   .chip {
     padding: 0.15rem 0.7rem;
     border-radius: 999px;
-    border: 1px solid #d9dde5;
-    background: #fff;
+    border: 1px solid var(--border);
+    background: var(--surface);
     color: #3c4356;
     font: inherit;
     font-size: 0.8rem;
@@ -194,9 +257,9 @@
   }
   .gap-card {
     padding: 1rem;
-    border: 1px solid #d9dde5;
+    border: 1px solid var(--border);
     border-radius: 8px;
-    background: #fff;
+    background: var(--surface);
   }
   .gap-card h3 { margin: 0 0 0.5rem; font-size: 0.95rem; }
   .gap-card.tone-amber { background: #fffaea; border-color: #ecd489; }
@@ -214,7 +277,7 @@
   }
   #gaps .gap-list { margin: 0; padding-left: 1.2rem; font-size: 0.85rem; }
   .gap-list li { margin: 0.25rem 0; overflow-wrap: anywhere; }
-  .gap-detail { color: #5a6172; }
+  .gap-detail { color: var(--muted); }
   .gap-error { display: block; color: #8f1f28; font-size: 0.8rem; overflow-wrap: anywhere; }
   /* Green all-clear state when a sub-list is empty. */
   .gap-empty {
@@ -229,6 +292,35 @@
     font-weight: 600;
   }
 </style>
+<style>
+  /* Dark theme (issue #21): re-tune the light-only accent colours above.
+     Page/surface/text/border chrome already follows the theme tokens; this
+     block only handles the tinted pieces (badges, banner, gap cards, chips,
+     errors). Palette shared with Jenkins-UT-Analyzer: red #ff6b6b,
+     green #4ade80, amber #ffd866, blue #8ab4f8, purple #b28cf5 on the
+     #121212/#1e1e1e Material surfaces. */
+  [data-theme="dark"] .banner { background: #332a08; border-color: #8a6d00; color: #ffd866; }
+  [data-theme="dark"] .badge { color: #e9ecef; }
+  [data-theme="dark"] .badge.status-healthy      { background: #16412a; border-color: #2d6a45; color: #4ade80; }
+  [data-theme="dark"] .badge.status-degraded     { background: #4a3c0a; border-color: #8a6d00; color: #ffd866; }
+  [data-theme="dark"] .badge.status-down         { background: #4a1f24; border-color: #7c3a41; color: #ff6b6b; }
+  [data-theme="dark"] .badge.status-not-deployed,
+  [data-theme="dark"] .badge.status-unknown      { background: #2b2f36; border-color: rgba(255, 255, 255, 0.12); color: #9aa1a9; }
+  [data-theme="dark"] .badge.lifecycle-experimental { background: #322250; border-color: #55418a; color: #b28cf5; }
+  [data-theme="dark"] .badge.lifecycle-production   { background: #1c3355; border-color: #2e4f7e; color: #8ab4f8; }
+  [data-theme="dark"] .badge.lifecycle-deprecated   { background: #4a3413; border-color: #7a5a2a; color: #e6b566; }
+  [data-theme="dark"] .badge.invalid { background: #4a1f24; border-color: #7c3a41; color: #ff6b6b; }
+  [data-theme="dark"] .error, [data-theme="dark"] .gap-error { color: #ff6b6b; }
+  [data-theme="dark"] .chip { color: #e9ecef; }
+  [data-theme="dark"] .chip:hover { border-color: rgba(255, 255, 255, 0.35); }
+  [data-theme="dark"] .chip[aria-pressed="true"] { background: #8ab4f8; border-color: #8ab4f8; color: #10131a; }
+  [data-theme="dark"] .gap-card.tone-amber { background: #2a230b; border-color: #66551a; }
+  [data-theme="dark"] .gap-card.tone-amber h3 { color: #ffd866; }
+  [data-theme="dark"] .gap-card.tone-red { background: #2c1518; border-color: #6e2a31; }
+  [data-theme="dark"] .gap-card.tone-red h3 { color: #ff6b6b; }
+  [data-theme="dark"] .gap-count { background: rgba(255, 255, 255, 0.12); }
+  [data-theme="dark"] .gap-empty { background: #16412a; border-color: #2d6a45; color: #4ade80; }
+</style>
 </head>
 <body>
 {% if not catalog.runtime_available %}
@@ -240,7 +332,21 @@
 {% endif %}
 
 <header id="header">
-  <h1>App Catalog</h1>
+  <div class="header-row">
+    <h1>App Catalog</h1>
+    {#- Theme toggle (issue #21): round Material-style icon button, inline
+        sun/moon SVGs (same icons as Jenkins-UT-Analyzer — self-contained,
+        no external assets). Wired by the theme script at the end of <body>. -#}
+    <button type="button" id="theme-toggle" class="theme-toggle"
+            title="Toggle dark/light theme" aria-label="Toggle dark/light theme">
+      <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10Zm0-5a1 1 0 0 1 1 1v1.5a1 1 0 1 1-2 0V3a1 1 0 0 1 1-1Zm0 17.5a1 1 0 0 1 1 1V22a1 1 0 1 1-2 0v-1.5a1 1 0 0 1 1-1ZM3 11a1 1 0 1 0 0 2h1.5a1 1 0 1 0 0-2H3Zm17.5 0a1 1 0 1 0 0 2H22a1 1 0 1 0 0-2h-1.5ZM5.64 4.22a1 1 0 0 1 1.42 0l1.06 1.06a1 1 0 1 1-1.42 1.42L5.64 5.64a1 1 0 0 1 0-1.42Zm11.24 11.24a1 1 0 0 1 1.42 0l1.06 1.06a1 1 0 0 1-1.42 1.42l-1.06-1.06a1 1 0 0 1 0-1.42ZM18.36 4.22a1 1 0 0 1 0 1.42l-1.06 1.06a1 1 0 1 1-1.42-1.42l1.06-1.06a1 1 0 0 1 1.42 0ZM7.12 15.46a1 1 0 0 1 0 1.42l-1.06 1.06a1 1 0 1 1-1.42-1.42l1.06-1.06a1 1 0 0 1 1.42 0Z"/>
+      </svg>
+      <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M20.74 14.51a8.5 8.5 0 0 1-10.25-10.25 1 1 0 0 0-1.27-1.19A10.5 10.5 0 1 0 21.93 15.78a1 1 0 0 0-1.19-1.27Z"/>
+      </svg>
+    </button>
+  </div>
   <p class="stats" id="stats">
     {{ catalog.entries | length }} apps
     · {{ catalog.coverage.cataloged }} of {{ catalog.coverage.total }} repos cataloged
@@ -461,10 +567,13 @@
 </footer>
 
 {#-
-  Issue #11: the ONE inline script — instant search, filter chips, sort.
-  Vanilla JS only, no libraries, no fetch/modules; everything is read from
-  the cards' data-* attributes so it works from file://. Sort orders are
-  documented on the #controls block above.
+  Issue #11: the ONE body script — instant search, filter chips, sort (and,
+  since #21, the theme-toggle wiring). Vanilla JS only, no libraries, no
+  fetch/modules; everything is read from the cards' data-* attributes so it
+  works from file://. Sort orders are documented on the #controls block
+  above. The only other script on the page is the tiny blocking theme
+  script in <head> (#21) — that one MUST run before first paint and cannot
+  live here.
 -#}
 <script>
 (function () {
@@ -559,6 +668,16 @@
   });
 
   apply();
+
+  /* Issue #21: light/dark toggle. The initial theme is applied by the
+     blocking script in <head> (before first paint); this only wires the
+     button. The choice persists in localStorage under "catalog-theme". */
+  var root = document.documentElement;
+  document.getElementById("theme-toggle").addEventListener("click", function () {
+    var next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    try { localStorage.setItem("catalog-theme", next); } catch (e) { /* storage disabled */ }
+  });
 })();
 </script>
 </body>
