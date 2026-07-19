@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+{#-
+  MVP catalog page (issue #9): plain self-contained table.
+  Hard rules: inline CSS only, no JS needed yet, ZERO external requests
+  (no CDN, no webfonts, no external images — status icons are emoji).
+  Autoescaping is enabled by the renderer; never use the |safe filter on
+  manifest/fixture data.
+-#}
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>App Catalog</title>
+<style>
+  :root { color-scheme: light; }
+  body {
+    margin: 0 auto;
+    padding: 1.5rem;
+    max-width: 80rem;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 0.95rem;
+    color: #1f2430;
+    background: #f7f8fa;
+  }
+  h1 { margin: 0 0 0.25rem; font-size: 1.6rem; }
+  h2 { margin: 2rem 0 0.5rem; font-size: 1.2rem; }
+  h3 { margin: 1rem 0 0.25rem; font-size: 1rem; }
+  .stats { margin: 0 0 1rem; color: #5a6172; }
+  .banner {
+    margin: 0 0 1rem;
+    padding: 0.6rem 0.9rem;
+    border: 1px solid #e0b400;
+    border-radius: 4px;
+    background: #fff7d6;
+    color: #6b5900;
+  }
+  table { border-collapse: collapse; width: 100%; background: #fff; }
+  th, td {
+    padding: 0.45rem 0.6rem;
+    border: 1px solid #d9dde5;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: #eef0f4; }
+  .desc { color: #5a6172; font-size: 0.85rem; margin-top: 0.15rem; }
+  .ready { color: #5a6172; font-size: 0.85rem; }
+  .badge {
+    display: inline-block;
+    padding: 0 0.35rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .badge.invalid { background: #fbe3e4; color: #8f1f28; border: 1px solid #e5a0a6; }
+  .error { color: #8f1f28; font-size: 0.8rem; margin-top: 0.15rem; }
+  .status { white-space: nowrap; }
+  .links a { white-space: nowrap; }
+  .empty { color: #5a6172; }
+  footer { margin-top: 2rem; color: #8a90a0; font-size: 0.8rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>App Catalog</h1>
+  <p class="stats">
+    {{ catalog.entries | length }} apps
+    · {{ catalog.coverage.cataloged }} of {{ catalog.coverage.total }} repos cataloged
+    ({{ "%.0f" | format(catalog.coverage.percent) }}%)
+    · generated {{ catalog.generated_at | datefmt }}
+  </p>
+</header>
+
+{% if not catalog.runtime_available %}
+<div class="banner" role="alert">
+  ⚠️ Runtime data unavailable since
+  {{ catalog.runtime_unavailable_since | datefmt if catalog.runtime_unavailable_since else "an unknown time" }}
+  — statuses and deployment details cannot be shown.
+</div>
+{% endif %}
+
+<main>
+<table>
+  <thead>
+    <tr>
+      <th>App</th>
+      <th>Status</th>
+      <th>Lifecycle</th>
+      <th>Owner</th>
+      <th>Image tag(s)</th>
+      <th>Last deploy</th>
+      <th>Last commit</th>
+      <th>Links</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for entry in catalog.entries %}
+    {% set manifest = entry.manifest %}
+    {% set runtime = entry.runtime %}
+    <tr>
+      <td>
+        <strong>{{ manifest.name if manifest and manifest.name else entry.repo.name }}</strong>
+        {% if entry.validation_errors %}
+        <span class="badge invalid">invalid metadata</span>
+        <div class="error">{{ entry.validation_errors[0] }}</div>
+        {% endif %}
+        {% if manifest and manifest.description %}
+        <div class="desc">{{ manifest.description }}</div>
+        {% endif %}
+      </td>
+      <td>
+        <span class="status">{{ status_emoji[entry.status] }} {{ entry.status.value }}</span>
+        {% if runtime %}
+          {% if runtime.lookup_error %}
+        <div class="error">{{ runtime.lookup_error }}</div>
+          {% else %}
+        <div class="ready">ready {{ runtime.ready_replicas }}/{{ runtime.desired_replicas }}</div>
+          {% endif %}
+        {% endif %}
+      </td>
+      <td>{{ manifest.lifecycle if manifest and manifest.lifecycle else "—" }}</td>
+      <td>{{ manifest.owner if manifest and manifest.owner else "—" }}</td>
+      <td>{{ runtime.image_tags | join(", ") if runtime and runtime.image_tags else "—" }}</td>
+      <td>{{ runtime.last_rollout | datefmt if runtime else "—" }}</td>
+      <td>{{ entry.repo.last_commit_date | datefmt }}</td>
+      <td class="links">
+        <a href="{{ entry.repo.url }}">repo</a>
+        {% if manifest %}
+          {% for link in manifest.links %}
+        · <a href="{{ link.url }}">{{ link.title if link.title else link.url }}</a>
+          {% endfor %}
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<section class="gaps">
+  <h2>Gaps</h2>
+
+  <h3>Deployed but not cataloged ({{ catalog.gaps.deployed_uncataloged | length }})</h3>
+  {% if catalog.gaps.deployed_uncataloged %}
+  <ul>
+    {% for dep in catalog.gaps.deployed_uncataloged %}
+    <li>
+      {{ dep.namespace }}/{{ dep.deployment_name }}
+      — ready {{ dep.ready_replicas }}/{{ dep.desired_replicas }}
+      {%- if dep.image_tags %} ({{ dep.image_tags | join(", ") }}){% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty">None.</p>
+  {% endif %}
+
+  <h3>Cataloged but not deployed ({{ catalog.gaps.cataloged_not_deployed | length }})</h3>
+  {% if catalog.gaps.cataloged_not_deployed %}
+  <ul>
+    {% for entry in catalog.gaps.cataloged_not_deployed %}
+    <li>{{ entry.manifest.name if entry.manifest and entry.manifest.name else entry.repo.name }}</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty">None.</p>
+  {% endif %}
+
+  <h3>Invalid metadata ({{ catalog.gaps.invalid_metadata | length }})</h3>
+  {% if catalog.gaps.invalid_metadata %}
+  <ul>
+    {% for entry in catalog.gaps.invalid_metadata %}
+    <li>{{ entry.repo.name }} — <span class="error">{{ entry.validation_errors[0] }}</span></li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty">None.</p>
+  {% endif %}
+</section>
+</main>
+
+<footer>
+  Generated {{ catalog.generated_at | datefmt }} · self-contained page, no external requests.
+</footer>
+</body>
+</html>
