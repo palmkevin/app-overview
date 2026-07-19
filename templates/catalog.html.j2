@@ -132,6 +132,103 @@
   .empty { color: #5a6172; }
   footer { margin-top: 2rem; color: #8a90a0; font-size: 0.8rem; }
 </style>
+<style>
+  /* Search / filter / sort controls (issue #11) — inline only, no webfonts. */
+  #controls { display: flex; flex-direction: column; gap: 0.5rem; margin: 1rem 0; }
+  .control-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
+  #search {
+    flex: 1 1 16rem;
+    max-width: 28rem;
+    padding: 0.45rem 0.7rem;
+    border: 1px solid #d9dde5;
+    border-radius: 6px;
+    font: inherit;
+    background: #fff;
+    color: #1f2430;
+  }
+  .sort-label { color: #5a6172; font-size: 0.85rem; }
+  #sort {
+    font: inherit;
+    font-size: 0.85rem;
+    padding: 0.25rem 0.4rem;
+    border: 1px solid #d9dde5;
+    border-radius: 6px;
+    background: #fff;
+    color: #1f2430;
+  }
+  #result-count { margin-left: auto; color: #5a6172; font-size: 0.85rem; }
+  .chip-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.4rem; }
+  .chip-row-label {
+    min-width: 4.5rem;
+    color: #8a90a0;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .chip {
+    padding: 0.15rem 0.7rem;
+    border-radius: 999px;
+    border: 1px solid #d9dde5;
+    background: #fff;
+    color: #3c4356;
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+  .chip:hover { border-color: #a9b2c2; }
+  /* Active chips: visually distinct + machine-readable via aria-pressed. */
+  .chip[aria-pressed="true"] { background: #1d4e9e; border-color: #1d4e9e; color: #fff; }
+  /* .card sets display:flex, which would defeat the UA [hidden] rule. */
+  .card[hidden], #empty-state[hidden] { display: none; }
+  #empty-state { margin: 1.25rem 0; }
+</style>
+<style>
+  /* Gaps section (issue #12) — three always-visible sub-lists as soft-toned
+     cards, consistent with the app-card CSS above. Warning tones, not
+     alarmist: amber for coverage gaps, soft red for invalid metadata. */
+  .gap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(22rem, 100%), 1fr));
+    gap: 1rem;
+    margin-top: 0.75rem;
+  }
+  .gap-card {
+    padding: 1rem;
+    border: 1px solid #d9dde5;
+    border-radius: 8px;
+    background: #fff;
+  }
+  .gap-card h3 { margin: 0 0 0.5rem; font-size: 0.95rem; }
+  .gap-card.tone-amber { background: #fffaea; border-color: #ecd489; }
+  .gap-card.tone-amber h3 { color: #7a5f00; }
+  .gap-card.tone-red { background: #fdf3f4; border-color: #e5a0a6; }
+  .gap-card.tone-red h3 { color: #8f1f28; }
+  .gap-count {
+    display: inline-block;
+    min-width: 1.4rem;
+    padding: 0.05rem 0.45rem;
+    border-radius: 999px;
+    background: rgba(31, 36, 48, 0.08);
+    font-size: 0.8rem;
+    text-align: center;
+  }
+  #gaps .gap-list { margin: 0; padding-left: 1.2rem; font-size: 0.85rem; }
+  .gap-list li { margin: 0.25rem 0; overflow-wrap: anywhere; }
+  .gap-detail { color: #5a6172; }
+  .gap-error { display: block; color: #8f1f28; font-size: 0.8rem; overflow-wrap: anywhere; }
+  /* Green all-clear state when a sub-list is empty. */
+  .gap-empty {
+    display: inline-block;
+    margin: 0;
+    padding: 0.2rem 0.6rem;
+    border: 1px solid #b5dfc0;
+    border-radius: 999px;
+    background: #e6f5e9;
+    color: #1b6e2f;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+</style>
 </head>
 <body>
 {% if not catalog.runtime_available %}
@@ -152,8 +249,52 @@
   </p>
 </header>
 
-{#- Anchor for issue #11: search / filter / sort controls mount here. -#}
-<div id="controls"></div>
+{#-
+  Search / filter / sort controls (issue #11). All wiring lives in the single
+  inline <script> at the end of <body> — vanilla JS, no libraries, works from
+  file:// (no fetch, no modules). Filters combine as AND between the three
+  groups (search, lifecycle, status) and OR within a chip group.
+
+  Fixed sort orders (deterministic; ties always fall back to name ascending):
+    name        — ascending, case-insensitive (default)
+    status      — worst problems first: down, degraded, unknown,
+                  not-deployed, healthy
+    last-deploy — newest first; cards WITHOUT a data-last-deploy sort LAST
+    lifecycle   — stage order: experimental, production, deprecated;
+                  cards without a lifecycle sort LAST
+-#}
+<div id="controls">
+  <div class="control-row">
+    <input id="search" type="search" autocomplete="off"
+           placeholder="Search name, description, tags, owner…"
+           aria-label="Search apps">
+    <label class="sort-label" for="sort">Sort by
+      <select id="sort">
+        <option value="name" selected>name</option>
+        <option value="status">status</option>
+        <option value="last-deploy">last deploy</option>
+        <option value="lifecycle">lifecycle</option>
+      </select>
+    </label>
+    <span id="result-count" aria-live="polite">{{ catalog.entries | length }} of {{ catalog.entries | length }} apps</span>
+  </div>
+  <div class="chip-row" role="group" aria-label="Filter by lifecycle">
+    <span class="chip-row-label">lifecycle</span>
+    {% for lifecycle in ("experimental", "production", "deprecated") %}
+    <button type="button" class="chip" data-group="lifecycle"
+            data-value="{{ lifecycle }}" aria-pressed="false">{{ lifecycle }}</button>
+    {% endfor %}
+  </div>
+  <div class="chip-row" role="group" aria-label="Filter by status">
+    <span class="chip-row-label">status</span>
+    {#- Chip per Status enum member — iterating status_emoji keeps the chip
+        set in lock-step with the statuses the cards can actually carry. -#}
+    {% for status in status_emoji %}
+    <button type="button" class="chip" data-group="status"
+            data-value="{{ status.value }}" aria-pressed="false">{{ status.value }}</button>
+    {% endfor %}
+  </div>
+</div>
 
 <main>
 <section id="apps">
@@ -240,53 +381,185 @@
     </article>
   {% endfor %}
   </div>
+  {#- Empty state for issue #11's search/filter (shown by the inline JS). -#}
+  <p id="empty-state" class="empty" hidden>No apps match the current search and filters.</p>
 </section>
 
-{#- Gaps: plain lists for now; issue #12 restyles this section. -#}
+{#-
+  Gaps section (issue #12): three always-visible sub-lists (PRD §6.3), no
+  toggle/collapse. Counts live in each heading; an empty sub-list shows a
+  green all-clear state instead. Cataloged-not-deployed and invalid-metadata
+  entries carry an AppEntry and link to their repo; deployed-uncataloged
+  entries are raw RuntimeStates — there is no repo to link to.
+-#}
 <section id="gaps">
   <h2>Gaps</h2>
+  <div class="gap-grid">
 
-  <h3>Deployed but not cataloged ({{ catalog.gaps.deployed_uncataloged | length }})</h3>
-  {% if catalog.gaps.deployed_uncataloged %}
-  <ul>
-    {% for dep in catalog.gaps.deployed_uncataloged %}
-    <li>
-      {{ dep.namespace }}/{{ dep.deployment_name }}
-      — ready {{ dep.ready_replicas }}/{{ dep.desired_replicas }}
-      {%- if dep.image_tags %} ({{ dep.image_tags | join(", ") }}){% endif %}
-    </li>
-    {% endfor %}
-  </ul>
-  {% else %}
-  <p class="empty">None.</p>
-  {% endif %}
+    <article class="gap-card tone-amber" id="gap-deployed-uncataloged">
+      <h3>Deployed but not cataloged
+        <span class="gap-count">{{ catalog.gaps.deployed_uncataloged | length }}</span></h3>
+      {% if catalog.gaps.deployed_uncataloged %}
+      <ul class="gap-list">
+        {% for dep in catalog.gaps.deployed_uncataloged %}
+        <li>
+          <code>{{ dep.namespace }}/{{ dep.deployment_name }}</code>
+          <span class="gap-detail">— ready {{ dep.ready_replicas }}/{{ dep.desired_replicas }}
+            {%- if dep.image_tags %} ({{ dep.image_tags | join(", ") }}){% endif %}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="gap-empty">No gaps 🎉</p>
+      {% endif %}
+    </article>
 
-  <h3>Cataloged but not deployed ({{ catalog.gaps.cataloged_not_deployed | length }})</h3>
-  {% if catalog.gaps.cataloged_not_deployed %}
-  <ul>
-    {% for entry in catalog.gaps.cataloged_not_deployed %}
-    <li>{{ entry.manifest.name if entry.manifest and entry.manifest.name else entry.repo.name }}</li>
-    {% endfor %}
-  </ul>
-  {% else %}
-  <p class="empty">None.</p>
-  {% endif %}
+    <article class="gap-card tone-amber" id="gap-cataloged-not-deployed">
+      <h3>Cataloged but not deployed
+        <span class="gap-count">{{ catalog.gaps.cataloged_not_deployed | length }}</span></h3>
+      {% if catalog.gaps.cataloged_not_deployed %}
+      <ul class="gap-list">
+        {% for entry in catalog.gaps.cataloged_not_deployed %}
+        <li>
+          <a href="{{ entry.repo.url }}">{{ entry.manifest.name if entry.manifest and entry.manifest.name else entry.repo.name }}</a>
+          {%- if entry.manifest and entry.manifest.lifecycle %}
+          <span class="gap-detail">({{ entry.manifest.lifecycle }})</span>
+          {%- endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="gap-empty">No gaps 🎉</p>
+      {% endif %}
+    </article>
 
-  <h3>Invalid metadata ({{ catalog.gaps.invalid_metadata | length }})</h3>
-  {% if catalog.gaps.invalid_metadata %}
-  <ul>
-    {% for entry in catalog.gaps.invalid_metadata %}
-    <li>{{ entry.repo.name }} — <span class="error">{{ entry.validation_errors[0] }}</span></li>
-    {% endfor %}
-  </ul>
-  {% else %}
-  <p class="empty">None.</p>
-  {% endif %}
+    <article class="gap-card tone-red" id="gap-invalid-metadata">
+      <h3>Invalid metadata
+        <span class="gap-count">{{ catalog.gaps.invalid_metadata | length }}</span></h3>
+      {% if catalog.gaps.invalid_metadata %}
+      <ul class="gap-list">
+        {% for entry in catalog.gaps.invalid_metadata %}
+        <li>
+          <a href="{{ entry.repo.url }}">{{ entry.repo.name }}</a>
+          {% for error in entry.validation_errors %}
+          <span class="gap-error">{{ error }}</span>
+          {% endfor %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="gap-empty">No gaps 🎉</p>
+      {% endif %}
+    </article>
+
+  </div>
 </section>
 </main>
 
 <footer>
   Generated {{ catalog.generated_at | datefmt }} · self-contained page, no external requests.
 </footer>
+
+{#-
+  Issue #11: the ONE inline script — instant search, filter chips, sort.
+  Vanilla JS only, no libraries, no fetch/modules; everything is read from
+  the cards' data-* attributes so it works from file://. Sort orders are
+  documented on the #controls block above.
+-#}
+<script>
+(function () {
+  "use strict";
+
+  var grid = document.getElementById("app-cards");
+  var cards = Array.prototype.slice.call(grid.querySelectorAll("article.card"));
+  var searchBox = document.getElementById("search");
+  var sortSelect = document.getElementById("sort");
+  var resultCount = document.getElementById("result-count");
+  var emptyState = document.getElementById("empty-state");
+  var chips = Array.prototype.slice.call(document.querySelectorAll("#controls .chip"));
+
+  /* Fixed sort orders — see the template comment on #controls. Values not
+     listed (e.g. a missing lifecycle) rank AFTER every listed value. */
+  var STATUS_ORDER = ["down", "degraded", "unknown", "not-deployed", "healthy"];
+  var LIFECYCLE_ORDER = ["experimental", "production", "deprecated"];
+
+  function rank(order, value) {
+    var index = order.indexOf(value);
+    return index === -1 ? order.length : index;
+  }
+
+  function byName(a, b) {
+    var na = a.dataset.name.toLowerCase();
+    var nb = b.dataset.name.toLowerCase();
+    return na < nb ? -1 : na > nb ? 1 : 0;
+  }
+
+  var comparators = {
+    name: byName,
+    status: function (a, b) {
+      return rank(STATUS_ORDER, a.dataset.status) -
+             rank(STATUS_ORDER, b.dataset.status) || byName(a, b);
+    },
+    lifecycle: function (a, b) {
+      return rank(LIFECYCLE_ORDER, a.dataset.lifecycle) -
+             rank(LIFECYCLE_ORDER, b.dataset.lifecycle) || byName(a, b);
+    },
+    "last-deploy": function (a, b) {
+      var ta = Date.parse(a.dataset.lastDeploy);  // NaN when empty/absent
+      var tb = Date.parse(b.dataset.lastDeploy);
+      if (isNaN(ta) && isNaN(tb)) { return byName(a, b); }
+      if (isNaN(ta)) { return 1; }   // no deploy date sorts LAST
+      if (isNaN(tb)) { return -1; }
+      return tb - ta || byName(a, b);  // newest first
+    }
+  };
+
+  function activeValues(group) {
+    return chips.filter(function (chip) {
+      return chip.dataset.group === group &&
+             chip.getAttribute("aria-pressed") === "true";
+    }).map(function (chip) { return chip.dataset.value; });
+  }
+
+  /* AND between groups (search, lifecycle, status); OR within a group.
+     An empty chip group means "no filter" for that group. */
+  function matches(card, query, lifecycles, statuses) {
+    if (lifecycles.length && lifecycles.indexOf(card.dataset.lifecycle) === -1) { return false; }
+    if (statuses.length && statuses.indexOf(card.dataset.status) === -1) { return false; }
+    if (!query) { return true; }
+    var haystack = (card.dataset.name + " " + card.dataset.description + " " +
+                    card.dataset.tags + " " + card.dataset.owner).toLowerCase();
+    return haystack.indexOf(query) !== -1;
+  }
+
+  function apply() {
+    var query = searchBox.value.trim().toLowerCase();
+    var lifecycles = activeValues("lifecycle");
+    var statuses = activeValues("status");
+    cards.sort(comparators[sortSelect.value] || comparators.name);
+    var shown = 0;
+    cards.forEach(function (card) {
+      var visible = matches(card, query, lifecycles, statuses);
+      card.hidden = !visible;
+      if (visible) { shown += 1; }
+      grid.appendChild(card);  // reorder the DOM to match the sort
+    });
+    resultCount.textContent = shown + " of " + cards.length + " apps";
+    emptyState.hidden = shown !== 0;
+  }
+
+  searchBox.addEventListener("input", apply);
+  sortSelect.addEventListener("change", apply);
+  chips.forEach(function (chip) {
+    chip.addEventListener("click", function () {
+      var pressed = chip.getAttribute("aria-pressed") === "true";
+      chip.setAttribute("aria-pressed", pressed ? "false" : "true");
+      apply();
+    });
+  });
+
+  apply();
+})();
+</script>
 </body>
 </html>
