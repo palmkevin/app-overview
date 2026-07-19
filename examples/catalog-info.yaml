@@ -1,0 +1,21 @@
+# Reference catalog-info.yaml (PRD §6.1) — place this file at the root of
+# every app repository. Backstage-compatible Component schema (subset);
+# unknown extra fields are allowed for forward compatibility.
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: time-tracker            # unique, kebab-case, required
+  description: Internal time tracking for project billing   # required
+  annotations:
+    ourcompany.io/k8s-deployment: time-tracker    # required: k8s Deployment name
+    ourcompany.io/k8s-namespace: tools            # required: k8s namespace
+  links:                        # optional
+    - url: https://time.internal.example.com
+      title: App URL
+    - url: https://confluence.example.com/x/abc
+      title: Runbook
+  tags: [react, internal-tool]  # optional
+spec:
+  type: website                 # required: website | service | tool
+  lifecycle: production         # required: experimental | production | deprecated
+  owner: jane.doe               # required: Bitbucket username of main maintainer
