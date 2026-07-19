@@ -86,8 +86,8 @@ def attr(card_html: str, name: str) -> str:
 
 def test_header_stats(html):
     assert "<h1>App Catalog</h1>" in html
-    assert "11 apps" in html
-    assert "11 of 12 repos cataloged" in html
+    assert "12 apps" in html
+    assert "12 of 13 repos cataloged" in html
     assert "(92%)" in html
     assert "generated 2026-07-15 12:00 UTC" in html
 
@@ -158,7 +158,7 @@ def test_data_attributes_empty_when_unknown(html):
 
 def test_every_card_carries_the_full_data_contract(html):
     cards = re.findall(r'<article class="card"[^>]*>', html)
-    assert len(cards) == 11
+    assert len(cards) == 12
     for opening_tag in cards:
         for name in (
             "data-name",

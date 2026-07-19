@@ -62,7 +62,7 @@ def test_html_contains_fixture_apps_and_statuses(outputs):
         assert emoji in html
     assert "ready 2/2" in html  # time-tracker replicas
     assert "invalid metadata" in html  # marker for legacy-wiki/metrics-dashboard
-    assert "of 12 repos cataloged" in html  # coverage stat in the header
+    assert "of 13 repos cataloged" in html  # coverage stat in the header
     assert "2026-07-15 12:00" in html  # injected generated_at shown
 
 
@@ -127,8 +127,8 @@ def test_json_output_matches_to_json_shape(outputs):
     assert data["schema_version"] == 1
     assert data["generated_at"] == GENERATED_AT.isoformat()
     assert data["runtime_available"] is True
-    assert data["coverage"]["total"] == 12
-    assert data["coverage"]["cataloged"] == 11  # ops-scripts has no manifest
+    assert data["coverage"]["total"] == 13
+    assert data["coverage"]["cataloged"] == 12  # ops-scripts has no manifest
     names = [app["name"] for app in data["apps"]]
     assert "time-tracker" in names and "ldap-sync" in names
     statuses = {app["name"]: app["status"] for app in data["apps"]}

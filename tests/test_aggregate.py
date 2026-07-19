@@ -135,6 +135,7 @@ def statuses_by_repo(catalog: CatalogData) -> dict[str, Status]:
 def test_every_status_appears_in_fixture_catalog():
     statuses = statuses_by_repo(run_fixtures())
     assert statuses == {
+        "app-catalog": Status.HEALTHY,  # dogfood entry (#15)
         "asset-inventory": Status.HEALTHY,
         "holiday-planner": Status.HEALTHY,
         "invoice-portal": Status.HEALTHY,
@@ -207,7 +208,7 @@ def test_per_app_lookup_error_yields_unknown():
 
 def test_invalid_yaml_keeps_entry_and_does_not_affect_other_apps():
     catalog = run_fixtures()
-    assert len(catalog.entries) == 11  # all cataloged repos present
+    assert len(catalog.entries) == 12  # all cataloged repos present
 
     wiki = next(e for e in catalog.entries if e.repo.name == "legacy-wiki")
     assert wiki.status is Status.UNKNOWN
@@ -304,9 +305,9 @@ def test_gap_invalid_metadata_lists_both_broken_repos():
 
 def test_coverage_counts_repos_without_manifest_as_uncataloged():
     catalog = run_fixtures()
-    assert catalog.coverage.cataloged == 11  # ops-scripts has no manifest
-    assert catalog.coverage.total == 12
-    assert catalog.coverage.percent == pytest.approx(100 * 11 / 12)
+    assert catalog.coverage.cataloged == 12  # ops-scripts has no manifest
+    assert catalog.coverage.total == 13
+    assert catalog.coverage.percent == pytest.approx(100 * 12 / 13)
 
 
 # --- runtime unavailable --------------------------------------------------------
@@ -318,7 +319,7 @@ def test_runtime_unavailable_still_aggregates_from_repo_data():
     assert catalog.runtime_unavailable_since == datetime(
         2026, 7, 1, 5, 30, tzinfo=UTC
     )
-    assert len(catalog.entries) == 11
+    assert len(catalog.entries) == 12
 
     statuses = statuses_by_repo(catalog)
     # Every runtime-dependent status collapses to UNKNOWN...
@@ -335,7 +336,7 @@ def test_runtime_unavailable_still_aggregates_from_repo_data():
     assert catalog.gaps.deployed_uncataloged == ()
     assert catalog.gaps.cataloged_not_deployed == ()
     # Coverage is repo-only data and is unaffected.
-    assert catalog.coverage.cataloged == 11
+    assert catalog.coverage.cataloged == 12
 
 
 def test_runtime_unavailable_since_falls_back_to_generated_at():
@@ -437,12 +438,12 @@ def test_catalog_json_round_trips_with_documented_shape():
     assert payload["runtime_available"] is True
     assert payload["runtime_unavailable_since"] is None
     # Machine-readable coverage for the future pipeline gate.
-    assert payload["coverage"] == {"cataloged": 11, "total": 12, "percent": 91.7}
+    assert payload["coverage"] == {"cataloged": 12, "total": 13, "percent": 92.3}
     # Timestamps are ISO strings.
     assert datetime.fromisoformat(payload["generated_at"]) == GENERATED_AT
 
     apps = {app["name"]: app for app in payload["apps"]}
-    assert len(apps) == 11
+    assert len(apps) == 12
     tracker = apps["time-tracker"]
     assert tracker["status"] == Status.HEALTHY.value
     assert tracker["repo"]["default_branch"] == "main"

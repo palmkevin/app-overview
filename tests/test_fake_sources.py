@@ -52,7 +52,7 @@ def _declared_deployment(manifest: dict, config: Config) -> tuple[str, str] | No
 
 def test_list_repos_returns_fixture_repos_with_metadata(repo_source):
     repos = {repo.name: repo for repo in repo_source.list_repos()}
-    assert len(repos) == 12
+    assert len(repos) == 13
 
     tracker = repos["time-tracker"]
     assert isinstance(tracker, Repo)

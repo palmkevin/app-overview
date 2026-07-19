@@ -3,7 +3,8 @@
 #
 # Scenario coverage (docs/decisions.md):
 #   healthy (1)              — time-tracker, holiday-planner, invoice-portal,
-#                              asset-inventory, meeting-room-booker
+#                              asset-inventory, meeting-room-booker,
+#                              app-catalog-nginx (the catalog dogfooding itself, #15)
 #   deployed-uncataloged (5) — status-page (no matching repo)
 #   degraded (6)             — pdf-renderer (1 of 3 ready, recent restarts)
 #   down (7)                 — ldap-sync (0 of 2 ready)
@@ -46,6 +47,13 @@ deployments:
     desired_replicas: 1
     image_tags: ["registry.internal.example.com/tools/meeting-room-booker:7.0.1"]
     last_rollout: "2025-11-03T17:00:00+00:00"
+    recent_restarts: 0
+  - namespace: tools
+    name: app-catalog-nginx
+    ready_replicas: 1
+    desired_replicas: 1
+    image_tags: ["registry.example.com/app-catalog-nginx:1.0.0"]
+    last_rollout: "2026-07-10T09:00:00+00:00"
     recent_restarts: 0
   - namespace: tools
     name: pdf-renderer
